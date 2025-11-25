@@ -146,18 +146,32 @@ int_heatmap_server <- function(input, output, session, rv) {
             local({
                 tbl_name <- tbl
                 data <- all_tables[[tbl_name]]
-
-                gene_names <- sapply(strsplit(rownames(data), "_"), `[`, 1)
-                clusters <- rv$gene_to_cluster[gene_names]
+                ref_source <- rv$intersected_tables_processed[[tbl_name]]
+                gene_id <- sapply(strsplit(rownames(data), "_"), `[`, 1)
+                clusters <- rv$gene_to_cluster[gene_id]
                 clusters[is.na(clusters)] <- NA
-
+                
                 df <- data.frame(
-                    Unique_ID = rownames(data),
-                    Gene_Name = gene_names,
+                    Gene_ID = gene_id,
+                    Gene_Name = rownames(data),
                     Cluster = clusters,
                     stringsAsFactors = FALSE
                 )
+                if ("pepG" %in% colnames(ref_source)) {
+                    lookup <- ref_source %>% 
+                        dplyr::select(Gene_ID, pepG)  
+                    
+                    df <- dplyr::left_join(df, lookup, by = "Gene_ID")
+                    
+                } else if ("Protein_ID" %in% colnames(ref_source)) {
+                    lookup <- ref_source %>% 
+                        dplyr::select(Gene_ID, Protein_ID)  
+                    
+                    df <- dplyr::left_join(df, lookup, by = "Gene_ID")
+                } else {
 
+                }
+                print(colnames(df))
                 output[[paste0("cluster_table_", tbl_name)]] <- DT::renderDT({
                     DT::datatable(df %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 5, dom = "Bfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
                 })
