@@ -1,7 +1,7 @@
 #' @export
 processed_integration <- function(input, output, session, rv) {
     observeEvent(input$process_integrate_data, {
-        req(input$processed_integration)
+        req(input$processed_integration, input$heatmap_k)
 
         selected_tables <- input$processed_integration
         filtered_ids <- list()
@@ -185,11 +185,12 @@ processed_integration <- function(input, output, session, rv) {
 
         # Intersect IDs
         common_ids <- Reduce(intersect, filtered_ids)
-        if (length(common_ids) == 0) {
-            showNotification("No intersecting significant IDs found.", type = "error")
+        if (length(common_ids) < input$heatmap_k) {
+            showNotification("Not enough intersecting significant IDs found, consider changing the parameters.", type = "error")
             rv$intersected_tables_processed <- NULL
             rv$integration_preview_dims <- NULL
             return()
+
         }
 
         # Subset SummarizedExperiment::assays by intersected gene names
