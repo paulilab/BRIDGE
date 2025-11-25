@@ -186,11 +186,12 @@ processed_integration <- function(input, output, session, rv) {
         # Intersect IDs
         common_ids <- Reduce(intersect, filtered_ids)
         if (length(common_ids) < input$heatmap_k) {
-            showNotification("Not enough intersecting significant IDs found, consider changing the parameters.", type = "error")
-            rv$intersected_tables_processed <- NULL
-            rv$integration_preview_dims <- NULL
-            return()
-
+            if (length(common_ids) == 0) {
+                showNotification("Not enough intersecting significant IDs found, consider changing the parameters.", type = "error")
+                rv$intersected_tables_processed <- NULL
+                rv$integration_preview_dims <- NULL
+                return()
+            }
         }
 
         # Subset SummarizedExperiment::assays by intersected gene names
@@ -308,7 +309,12 @@ processed_integration <- function(input, output, session, rv) {
             rv$optimal_k <- NULL
             return()
         }
-        optimal_k <- safe_nbclust(stacked, k_min = 2, k_max = 10)
+        if (length(common_ids) < input$heatmap_k) {
+            optimal_k = 1
+        } else {
+            optimal_k <- safe_nbclust(stacked, k_min = 2, k_max = 10)
+        }
         rv$optimal_k <- ifelse(is.na(optimal_k), NULL, optimal_k)
+
     })
 }
