@@ -145,34 +145,34 @@ int_heatmap_server <- function(input, output, session, rv) {
         lapply(names(all_tables), function(tbl) {
             local({
                 tbl_name <- tbl
-                data <- all_tables[[tbl_name]]
-                ref_source <- rv$intersected_tables_processed[[tbl_name]]
-                gene_id <- sapply(strsplit(rownames(data), "_"), `[`, 1)
-                clusters <- rv$gene_to_cluster[gene_id]
-                clusters[is.na(clusters)] <- NA
-                
-                df <- data.frame(
-                    Gene_ID = gene_id,
-                    Gene_Name = rownames(data),
-                    Cluster = clusters,
+                table <- rv$intersected_tables_processed[[tbl_name]]
+
+                cluster_lookup <- data.frame(
+                    Gene_ID = names(rv$gene_to_cluster),
+                    Cluster = as.vector(rv$gene_to_cluster),
                     stringsAsFactors = FALSE
                 )
-                if ("pepG" %in% colnames(ref_source)) {
-                    lookup <- ref_source %>% 
-                        dplyr::select(Gene_ID, pepG)  
-                    
-                    df <- dplyr::left_join(df, lookup, by = "Gene_ID")
-                    
-                } else if ("Protein_ID" %in% colnames(ref_source)) {
-                    lookup <- ref_source %>% 
-                        dplyr::select(Gene_ID, Protein_ID)  
-                    
-                    df <- dplyr::left_join(df, lookup, by = "Gene_ID")
-                } else {
 
+                table_with_clusters <- dplyr::left_join(table, cluster_lookup, by = "Gene_ID")
+
+                if (grepl("rnaseq", tbl_name, ignore.case = TRUE)) {
+                    cols_to_show <- c("Gene_Name", "Gene_ID", "Cluster")
+                    
+                } else if (grepl("phosphoproteomics", tbl_name, ignore.case = TRUE)) {
+                    cols_to_show <- c("Gene_Name", "Gene_ID", "pepG", "Protein_ID", "Cluster")
+                    
+                } else if (grepl("proteomics", tbl_name, ignore.case = TRUE)) {
+                    cols_to_show <- c("Gene_Name", "Gene_ID", "Protein_ID", "Cluster")
+                    
+                } else {
+                    cols_to_show <- colnames(table_with_clusters)
                 }
+
+                final_df <- table_with_clusters %>% 
+                    dplyr::select(dplyr::any_of(cols_to_show))
+
                 output[[paste0("cluster_table_", tbl_name)]] <- DT::renderDT({
-                    DT::datatable(df %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 5, dom = "Bfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
+                    DT::datatable(final_df %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 5, dom = "Bfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
                 })
             })
         })
