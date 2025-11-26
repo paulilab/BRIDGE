@@ -155,13 +155,13 @@ int_heatmap_server <- function(input, output, session, rv) {
 
                 table_with_clusters <- dplyr::left_join(table, cluster_lookup, by = "Gene_ID")
 
-                if (grepl("rnaseq", tbl_name, ignore.case = TRUE)) {
+                if (rv$datatype[[tbl_name]] == "rnaseq") {
                     cols_to_show <- c("Gene_Name", "Gene_ID", "Cluster")
                     
-                } else if (grepl("phosphoproteomics", tbl_name, ignore.case = TRUE)) {
+                } else if (rv$datatype[[tbl_name]] == "phosphoproteomics") {
                     cols_to_show <- c("Gene_Name", "Gene_ID", "pepG", "Protein_ID", "Cluster")
                     
-                } else if (grepl("proteomics", tbl_name, ignore.case = TRUE)) {
+                } else if (rv$datatype[[tbl_name]] == "proteomics") {
                     cols_to_show <- c("Gene_Name", "Gene_ID", "Protein_ID", "Cluster")
                     
                 } else {
