@@ -91,7 +91,8 @@ datapointsServer <- function(id, rv, tbl_name) {
                 filter = "top",
                 options = list(
                     scrollX = TRUE, pageLength = 10,
-                    dom = "Bfrtip",
+                    lengthMenu = c(5, 10, 25, 50, 100),    # user-selectable options
+                    dom = "Blfrtip",
                     buttons = c("copy", "csv", "excel", "pdf", "print")
                 )
             )

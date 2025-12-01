@@ -7,18 +7,16 @@ int_heatmap_server <- function(input, output, session, rv) {
             lapply(names(rv$intersected_matrix_processed), function(tbl) {
                 plotOutput(outputId = paste0("heatmap_", tbl), width = "80%")
             }),
-            shiny::br(),
-            lapply(names(tables), function(tbl) {
-                shinydashboard::box(
-                    title = paste("Clusters Table:", tbl),
-                    width = 12,
-                    solidHeader = TRUE,
-                    status = "info",
-                    collapsible = TRUE,
-                    collapsed = FALSE,
-                    DT::DTOutput(outputId = paste0("cluster_table_", tbl))
-                )
-            })
+            shiny::br(),            
+            shinydashboard::box(
+                title = "Cluster Table",
+                width = 12,
+                solidHeader = TRUE,
+                status = "info",
+                collapsible = TRUE,
+                collapsed = FALSE,
+                DT::DTOutput(outputId = "Cluster_table")
+            )
         )
     })
 
@@ -142,7 +140,8 @@ int_heatmap_server <- function(input, output, session, rv) {
             })
         })
 
-        lapply(names(all_tables), function(tbl) {
+        # Render cluster tables
+        df_list <- lapply(names(all_tables), function(tbl) {
             local({
                 tbl_name <- tbl
                 table <- rv$intersected_tables_processed[[tbl_name]]
@@ -168,15 +167,21 @@ int_heatmap_server <- function(input, output, session, rv) {
                     cols_to_show <- colnames(table_with_clusters)
                 }
 
-                final_df <- table_with_clusters %>% 
-                    dplyr::select(dplyr::any_of(cols_to_show))
-
-                output[[paste0("cluster_table_", tbl_name)]] <- DT::renderDT({
-                    DT::datatable(final_df %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 5, dom = "Bfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
-                })
+                return(table_with_clusters %>% 
+                    dplyr::select(dplyr::any_of(cols_to_show)) %>%
+                    dplyr::mutate(Cluster = paste0(tbl_name, "_", Cluster)) %>%
+                    dplyr::distinct())            
             })
         })
 
+        final_df <- do.call(bind_rows, df_list) %>%
+            dplyr::select(Gene_Name, Gene_ID, Cluster, all_of(c("Protein_ID", "pepG"))) %>%
+            dplyr::arrange(Gene_Name, Gene_ID, Cluster) %>%
+            dplyr::distinct()
+
+        output$Cluster_table <- DT::renderDT({
+                    DT::datatable(final_df %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 5, lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
+                })
 
         output$lfc_scatter_selector <- shiny::renderUI({
             shiny::req(rv$scatter_plots)
@@ -197,8 +202,6 @@ int_heatmap_server <- function(input, output, session, rv) {
             }
             
         })
-
-
 
         output$lfc_scatter_plot <- plotly::renderPlotly({
             shiny::req(rv$scatter_plots)

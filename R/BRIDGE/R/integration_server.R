@@ -199,21 +199,18 @@ integration_ui <- function(input, output, session, rv) {
     })
 
     shiny::observe({
-        shiny::req(rv$intersected_tables_processed)
+        shiny::req(rv$intersected_tables_processed)        
         lapply(names(rv$intersected_tables_processed), function(tbl) {
             local({
                 table_name <- tbl
                 output_id <- paste0("processed_tbl_", table_name)
                 data <- rv$intersected_tables_processed[[table_name]]
                 output[[output_id]] <- DT::renderDT({
-                    DT::datatable(data %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 5, dom = "Bfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
+                    DT::datatable(data %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 5, lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
                 })
             })
-        })
+        })        
     })
-
-
-
 
     # Column selector for each selected table
     output$integration_col_selector <- shiny::renderUI({
@@ -238,8 +235,6 @@ integration_ui <- function(input, output, session, rv) {
             )
         })
     })
-
-
 
 
     # Show how columns will be matched
@@ -290,7 +285,6 @@ integration_ui <- function(input, output, session, rv) {
     int_heatmap_server(input, output, session, rv)
 
 
-
     # Render integrated table
     output$integration_combined_table <- DT::renderDT({
         if (is.null(combined_data())) {
@@ -309,6 +303,6 @@ integration_ui <- function(input, output, session, rv) {
             )
         }
 
-        DT::datatable(combined_data() %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 10, dom = "Bfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
+        DT::datatable(combined_data() %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 10, lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
     })
 }
