@@ -256,7 +256,7 @@ server_function <- function(input, output, session, db_path) {
                     h3(), DT::DTOutput(paste0("table_", tbl_name)), h3()
                 ),
                 shinydashboard::tabBox(
-                    title = shinyWidgets::actionBttn(paste0("individual_help_", tbl_name),
+                    title = shinyWidgets::actionBttn("individual_help",
                         "Help",
                         color = "primary", icon = icon("question-circle"),
                         size = "sm", style = "bordered"
