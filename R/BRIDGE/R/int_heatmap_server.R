@@ -70,17 +70,32 @@ int_heatmap_server <- function(input, output, session, rv) {
         }
 
         # Get cluster labels and order of genes
-        cluster_labels <- km$cluster
-        #message("Cluster labels assigned:", paste0(unique(cluster_labels), collapse = ", "), "...")
-        ordered_genes <- rownames(mat_scaled)[order(cluster_labels)]
+        raw_ids <- names(km$cluster)
+        # Splits "ENSDARG..._rb1" and takes "rb1"
+        clean_genes <- vapply(strsplit(raw_ids, "_"), tail, 1, FUN.VALUE = character(1)) 
+        clean_genes <- stringr::str_to_title(clean_genes)
+        # 2. Handle Duplicates (Majority Vote)
+        # If 'rb1' is in Cluster 1 (3 times) and Cluster 3 (3 times), we need a tie-breaker.
+        # This logic picks the most frequent cluster for each gene.
+        temp_map <- data.frame(Gene = clean_genes, Cluster = km$cluster, stringsAsFactors = FALSE)
+        
+        gene_map_unique <- temp_map %>%
+            dplyr::group_by(Gene) %>%
+            dplyr::count(Cluster) %>%
+            dplyr::arrange(Gene, dplyr::desc(n)) %>%
+            dplyr::slice(1) %>% # Take top cluster per gene
+            dplyr::ungroup()
 
-        # Save info for use across plots
+        # 3. Create the clean map: "rb1" -> 1
+        rv$gene_map <- setNames(as.integer(gene_map_unique$Cluster), gene_map_unique$Gene)
+        
+        # Save order for the Reference Plot (keep original detailed rownames for the first plot)
+        ordered_genes <- rownames(mat_scaled)[order(km$cluster)]
         rv$heatmap_clusters <- list(
             order = ordered_genes,
-            cluster = cluster_labels
+            cluster = km$cluster
         )
-        
-        rv$gene_map <- setNames(as.integer(cluster_labels), ordered_genes)
+
         message("Heatmap clustering done with k =", k, "Gene map:", str(rv$gene_map), "...")
 
         # Render heatmaps
@@ -98,8 +113,18 @@ int_heatmap_server <- function(input, output, session, rv) {
                     rownames(mat_scaled_tbl) <- as.character(mat_scaled_tbl$Gene_Name)
                 }
 
-                cluster_vec <- factor(rv$gene_map[rownames(mat_scaled_tbl)], levels = 1:k)
-
+                meta_df <- rv$intersected_tables_processed[[tbl_name]]
+                
+                # 2. Extract Gene Names (e.g., "rb1", "Cttn")
+                # Ensure this column name matches your data exactly
+                current_genes <- stringr::str_to_title(as.character(meta_df$Gene_Name))
+                
+                # 3. Look up in the new clean map
+                cluster_vec <- factor(rv$gene_map[current_genes], levels = 1:k)
+                
+                # 4. FIX "Inf" WARNINGS: Drop unused levels
+                # If Cluster 3 is empty in this table, remove it from the factor
+                cluster_vec <- droplevels(cluster_vec)
                 valid <- !is.na(cluster_vec)
                 mat_ordered <- mat_scaled_tbl[valid, , drop = FALSE]
                 cluster_vec <- cluster_vec[valid]
@@ -182,14 +207,15 @@ int_heatmap_server <- function(input, output, session, rv) {
                     table$unique_id <- NA
                 }
                 table$unique_id <- as.character(table$unique_id)
-
+                table$Gene_Name <- stringr::str_to_title(as.character(table$Gene_Name))
                 cluster_lookup <- data.frame(
-                    unique_id = names(rv$gene_map),
+                    Gene_Name = names(rv$gene_map),
                     Cluster = as.vector(rv$gene_map),
                     stringsAsFactors = FALSE
                 )
 
-                table_with_clusters <- dplyr::left_join(table, cluster_lookup, by = "unique_id")
+                # Join using Gene_Name (The universal link)
+                table_with_clusters <- dplyr::inner_join(table, cluster_lookup, by = "Gene_Name")
 
                 # Select columns to show
                 if (datatype == "rnaseq") {
