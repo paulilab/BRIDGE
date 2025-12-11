@@ -28,6 +28,21 @@ int_heatmap_server <- function(input, output, session, rv) {
         first_tbl <- all_tables[[1]]
         mat_scaled <- first_tbl
         
+        # Determine unique_id for each row based on datatype
+        datatype <- rv$datatype[[names(all_tables)[1]]]  # assumes all tables are same type for clustering
+
+        if (datatype == "phosphoproteomics" && all(c("Gene_Name", "pepG", "Protein_ID") %in% colnames(first_tbl))) {
+            unique_id <- paste(first_tbl$Gene_Name, first_tbl$pepG, first_tbl$Protein_ID, sep = "_")
+        } else if (datatype == "proteomics" && all(c("Gene_Name", "Protein_ID") %in% colnames(first_tbl))) {
+            unique_id <- paste(first_tbl$Gene_Name, first_tbl$Protein_ID, sep = "_")
+        } else if (datatype == "rnaseq" && "Gene_Name" %in% colnames(first_tbl)) {
+            unique_id <- as.character(first_tbl$Gene_Name)
+        } else {
+            unique_id <- rownames(first_tbl)
+        }
+        unique_id <- as.character(unique_id)
+        rownames(mat_scaled) <- unique_id
+
         k <- as.integer(input$heatmap_k)
         if (!is.finite(k) || k < 2) k <- 2
 
@@ -56,6 +71,7 @@ int_heatmap_server <- function(input, output, session, rv) {
 
         # Get cluster labels and order of genes
         cluster_labels <- km$cluster
+        #message("Cluster labels assigned:", paste0(unique(cluster_labels), collapse = ", "), "...")
         ordered_genes <- rownames(mat_scaled)[order(cluster_labels)]
 
         # Save info for use across plots
@@ -63,9 +79,9 @@ int_heatmap_server <- function(input, output, session, rv) {
             order = ordered_genes,
             cluster = cluster_labels
         )
-
-        gene_map <- data.frame(unique_id = rownames(first_tbl), Gene_Name = sapply(strsplit(rownames(first_tbl), "_"), `[`, 1))
-        rv$gene_to_cluster <- setNames(rv$heatmap_clusters$cluster, gene_map$Gene_Name)
+        
+        rv$gene_map <- setNames(as.integer(cluster_labels), ordered_genes)
+        message("Heatmap clustering done with k =", k, "Gene map:", str(rv$gene_map), "...")
 
         # Render heatmaps
         lapply(names(all_tables), function(tbl) {
@@ -73,8 +89,16 @@ int_heatmap_server <- function(input, output, session, rv) {
                 tbl_name <- tbl
                 mat_scaled_tbl <- all_tables[[tbl_name]]                
 
-                gene_names <- sapply(strsplit(rownames(mat_scaled_tbl), "_"), `[`, 1)
-                cluster_vec <- factor(rv$gene_to_cluster[gene_names], levels = 1:k)
+                # Use unique_id for rownames
+                if (datatype == "phosphoproteomics" && all(c("Gene_Name", "pepG", "Protein_ID") %in% colnames(mat_scaled_tbl))) {
+                    rownames(mat_scaled_tbl) <- paste(mat_scaled_tbl$Gene_Name, mat_scaled_tbl$pepG, mat_scaled_tbl$Protein_ID, sep = "_")
+                } else if (datatype == "proteomics" && all(c("Gene_Name", "Protein_ID") %in% colnames(mat_scaled_tbl))) {
+                    rownames(mat_scaled_tbl) <- paste(mat_scaled_tbl$Gene_Name, mat_scaled_tbl$Protein_ID, sep = "_")
+                } else if (datatype == "rnaseq" && "Gene_Name" %in% colnames(mat_scaled_tbl)) {
+                    rownames(mat_scaled_tbl) <- as.character(mat_scaled_tbl$Gene_Name)
+                }
+
+                cluster_vec <- factor(rv$gene_map[rownames(mat_scaled_tbl)], levels = 1:k)
 
                 valid <- !is.na(cluster_vec)
                 mat_ordered <- mat_scaled_tbl[valid, , drop = FALSE]
@@ -145,32 +169,43 @@ int_heatmap_server <- function(input, output, session, rv) {
             local({
                 tbl_name <- tbl
                 table <- rv$intersected_tables_processed[[tbl_name]]
+                datatype <- rv$datatype[[tbl_name]]
+
+                # --- FIX: Construct unique_id for joining, matching above ---
+                if (datatype == "phosphoproteomics" && all(c("Gene_Name", "pepG", "Protein_ID") %in% colnames(table))) {
+                    table$unique_id <- paste(table$Gene_Name, table$pepG, table$Protein_ID, sep = "_")
+                } else if (datatype == "proteomics" && all(c("Gene_Name", "Protein_ID") %in% colnames(table))) {
+                    table$unique_id <- paste(table$Gene_Name, table$Protein_ID, sep = "_")
+                } else if (datatype == "rnaseq" && "Gene_Name" %in% colnames(table)) {
+                    table$unique_id <- as.character(table$Gene_Name)
+                } else {
+                    table$unique_id <- NA
+                }
+                table$unique_id <- as.character(table$unique_id)
 
                 cluster_lookup <- data.frame(
-                    Gene_ID = names(rv$gene_to_cluster),
-                    Cluster = as.vector(rv$gene_to_cluster),
+                    unique_id = names(rv$gene_map),
+                    Cluster = as.vector(rv$gene_map),
                     stringsAsFactors = FALSE
                 )
 
-                table_with_clusters <- dplyr::left_join(table, cluster_lookup, by = "Gene_ID")
+                table_with_clusters <- dplyr::left_join(table, cluster_lookup, by = "unique_id")
 
-                if (rv$datatype[[tbl_name]] == "rnaseq") {
+                # Select columns to show
+                if (datatype == "rnaseq") {
                     cols_to_show <- c("Gene_Name", "Gene_ID", "Cluster")
-                    
-                } else if (rv$datatype[[tbl_name]] == "phosphoproteomics") {
+                } else if (datatype == "phosphoproteomics") {
                     cols_to_show <- c("Gene_Name", "Gene_ID", "pepG", "Protein_ID", "Cluster")
-                    
-                } else if (rv$datatype[[tbl_name]] == "proteomics") {
+                } else if (datatype == "proteomics") {
                     cols_to_show <- c("Gene_Name", "Gene_ID", "Protein_ID", "Cluster")
-                    
                 } else {
                     cols_to_show <- colnames(table_with_clusters)
                 }
 
-                return(table_with_clusters %>% 
+                table_with_clusters %>%
                     dplyr::select(dplyr::any_of(cols_to_show)) %>%
                     dplyr::mutate(Cluster = paste0(tbl_name, "_", Cluster)) %>%
-                    dplyr::distinct())            
+                    dplyr::distinct()
             })
         })
 
