@@ -692,7 +692,7 @@ if (is.null(local_mat) || nrow(local_mat) == 0L || ncol(local_mat) == 0L) {
             DT::datatable(df_filtered %>% dplyr::select(where(~!is.numeric(.)), where(is.numeric)),
                 extensions = "Buttons",
                 filter = "top",
-                options = list(scrollX = TRUE, processing = TRUE, pageLength = 10, dom = "Bfrtip", buttons = c("copy", "csv", "excel", "pdf", "print"))
+                options = list(scrollX = TRUE, processing = TRUE, pageLength = 10, lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = c("copy", "csv", "excel", "pdf", "print"))
             )
         })
 

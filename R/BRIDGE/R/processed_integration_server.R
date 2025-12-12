@@ -1,7 +1,7 @@
 #' @export
 processed_integration <- function(input, output, session, rv) {
     observeEvent(input$process_integrate_data, {
-        req(input$processed_integration)
+        req(input$processed_integration, input$heatmap_k)
 
         selected_tables <- input$processed_integration
         filtered_ids <- list()
@@ -185,11 +185,13 @@ processed_integration <- function(input, output, session, rv) {
 
         # Intersect IDs
         common_ids <- Reduce(intersect, filtered_ids)
-        if (length(common_ids) == 0) {
-            showNotification("No intersecting significant IDs found.", type = "error")
-            rv$intersected_tables_processed <- NULL
-            rv$integration_preview_dims <- NULL
-            return()
+        if (length(common_ids) < input$heatmap_k) {
+            if (length(common_ids) == 0) {
+                showNotification("Not enough intersecting significant IDs found, consider changing the parameters.", type = "error")
+                rv$intersected_tables_processed <- NULL
+                rv$integration_preview_dims <- NULL
+                return()
+            }
         }
 
         # Subset SummarizedExperiment::assays by intersected gene names
@@ -201,7 +203,15 @@ processed_integration <- function(input, output, session, rv) {
             dep_flt <- res[res$Gene_ID %in% common_ids | res$XID %in% common_ids, ]  
             mat_flt <- mat[mat$Gene_ID %in% common_ids | mat$XID %in% common_ids, ] 
 
-            data <- dplyr::inner_join(mat_flt, dep_flt, by = "Gene_ID", keep=FALSE, suffix=c("",".y")) %>%
+            join_keys <- "Gene_ID"
+            
+            if ("pepG" %in% colnames(mat_flt) && "pepG" %in% colnames(dep_flt)) {
+                join_keys <- c(join_keys, "pepG")
+            } else if ("Protein_ID" %in% colnames(mat_flt) && "Protein_ID" %in% colnames(dep_flt)) {
+                join_keys <- c(join_keys, "Protein_ID")
+            }
+
+            data <- dplyr::inner_join(mat_flt, dep_flt, by = join_keys, keep=FALSE, suffix=c("",".y")) %>%
                 dplyr::select(-ends_with(".y"))
 
             # Generate unique IDs
@@ -307,7 +317,12 @@ processed_integration <- function(input, output, session, rv) {
             rv$optimal_k <- NULL
             return()
         }
-        optimal_k <- safe_nbclust(stacked, k_min = 2, k_max = 10)
+        if (length(common_ids) < input$heatmap_k) {
+            optimal_k = 1
+        } else {
+            optimal_k <- safe_nbclust(stacked, k_min = 2, k_max = 10)
+        }
         rv$optimal_k <- ifelse(is.na(optimal_k), NULL, optimal_k)
+
     })
 }
