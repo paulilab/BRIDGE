@@ -1,273 +1,257 @@
 #' @export
 int_heatmap_server <- function(input, output, session, rv) {
-    output$integrated_heatmaps <- shiny::renderUI({
-        shiny::req(rv$intersected_matrix_processed, input$heatmap_k)
-        tables <- rv$intersected_matrix_processed
-        htmltools::tagList(
-            lapply(names(rv$intersected_matrix_processed), function(tbl) {
-                plotOutput(outputId = paste0("heatmap_", tbl), width = "80%")
-            }),
-            shiny::br(),            
-            shinydashboard::box(
-                title = "Cluster Table",
-                width = 12,
-                solidHeader = TRUE,
-                status = "info",
-                collapsible = TRUE,
-                collapsed = FALSE,
-                DT::DTOutput(outputId = "Cluster_table")
+
+  output$integrated_heatmaps <- shiny::renderUI({
+    shiny::req(rv$intersected_matrix_processed, input$heatmap_k)
+    htmltools::tagList(
+      lapply(names(rv$intersected_matrix_processed), function(tbl) {
+        plotOutput(outputId = paste0("heatmap_", tbl), width = "80%")
+      }),
+      shiny::br(),
+      shinydashboard::box(
+        title = "Cluster Table",
+        width = 12,
+        solidHeader = TRUE,
+        status = "info",
+        collapsible = TRUE,
+        collapsed = FALSE,
+        DT::DTOutput(outputId = "Cluster_table")
+      )
+    )
+  })
+
+  # Helper: build the exact ID used as heatmap rownames for a given table
+  make_unique_id <- function(meta_df, mat, datatype) {
+    if (!is.null(datatype) &&
+        datatype == "phosphoproteomics" &&
+        all(c("Gene_Name", "pepG", "Protein_ID") %in% colnames(meta_df))) {
+      as.character(paste(meta_df$Gene_Name, meta_df$pepG, meta_df$Protein_ID, sep = "_"))
+    } else if (!is.null(datatype) &&
+               datatype == "proteomics" &&
+               all(c("Gene_Name", "Protein_ID") %in% colnames(meta_df))) {
+      as.character(paste(meta_df$Gene_Name, meta_df$Protein_ID, sep = "_"))
+    } else if (!is.null(datatype) &&
+               datatype == "rnaseq" &&
+               "Gene_Name" %in% colnames(meta_df)) {
+      as.character(meta_df$Gene_Name)
+    } else {
+      # fallback: keep matrix rownames if present
+      rn <- rownames(mat)
+      if (is.null(rn)) as.character(seq_len(nrow(mat))) else as.character(rn)
+    }
+  }
+
+  # One reactive that computes everything needed for heatmaps + cluster table
+  heatmap_state <- shiny::reactive({
+    shiny::req(rv$intersected_matrix_processed, rv$intersected_tables_processed, rv$datatype, input$heatmap_k)
+
+    all_mats  <- rv$intersected_matrix_processed
+    all_meta  <- rv$intersected_tables_processed
+
+    k <- suppressWarnings(as.integer(input$heatmap_k))
+    if (!is.finite(k) || k < 2) k <- 2L
+
+    res <- list()   # per-table results
+    tbls <- intersect(names(all_mats), names(all_meta))
+
+    shiny::req(length(tbls) > 0)
+
+    for (tbl_name in tbls) {
+      mat <- all_mats[[tbl_name]]
+      meta_df <- all_meta[[tbl_name]]
+      datatype <- rv$datatype[[tbl_name]]
+
+      # Make sure mat is a numeric matrix (kmeans requires numeric)
+      mat <- as.matrix(mat)
+      storage.mode(mat) <- "double"
+
+      # Drop rows with any non-finite values (avoids kmeans hanging/failing silently)
+      keep <- apply(mat, 1, function(x) all(is.finite(x)))
+      mat <- mat[keep, , drop = FALSE]
+      meta_df <- meta_df[keep, , drop = FALSE]
+
+      # Need at least 2 rows to cluster
+      if (nrow(mat) < 2) next
+
+      unique_id <- make_unique_id(meta_df, mat, datatype)
+      rownames(mat) <- unique_id
+
+      k_max <- max(2L, nrow(mat) - 1L)
+      k_use <- min(k, k_max)
+      if (k_use < 2L) next
+
+      km <- stats::kmeans(mat, centers = k_use, nstart = 10, iter.max = 100)
+
+      cluster_vec <- factor(km$cluster, levels = 1:k_use)
+      ord <- order(cluster_vec)
+
+      mat_ordered <- mat[ord, , drop = FALSE]
+      cluster_vec <- cluster_vec[ord]
+
+      cluster_df <- data.frame(
+        dataset  = tbl_name,
+        unique_id = rownames(mat_ordered),
+        Cluster  = as.integer(cluster_vec),
+        stringsAsFactors = FALSE
+      )
+
+      res[[tbl_name]] <- list(
+        mat_ordered = mat_ordered,
+        cluster_vec = cluster_vec,
+        cluster_df  = cluster_df,
+        meta_df     = meta_df,     # filtered meta (same rows as mat before ordering)
+        datatype    = datatype,
+        k_use       = k_use
+      )
+    }
+
+    shiny::req(length(res) > 0)
+    res
+  })
+
+  # Render each heatmap from computed state
+  shiny::observe({
+    state <- heatmap_state()
+
+    lapply(names(state), function(tbl_name) {
+      local({
+        nm <- tbl_name
+        output[[paste0("heatmap_", nm)]] <- shiny::renderPlot({
+          x <- state[[nm]]
+          mat_ordered <- x$mat_ordered
+          cluster_vec <- x$cluster_vec
+          k_use <- x$k_use
+
+          # Trend lines per cluster (safe)
+          cluster_ids <- split(seq_len(nrow(mat_ordered)), cluster_vec)
+          line_profiles <- t(vapply(cluster_ids, function(idxs) {
+            colMeans(mat_ordered[idxxs <- idxs, , drop = FALSE], na.rm = TRUE)
+          }, FUN.VALUE = numeric(ncol(mat_ordered))))
+
+          if (nrow(line_profiles) == 0 || ncol(line_profiles) == 0) return(NULL)
+
+          line_profiles_norm <- t(apply(line_profiles, 1, function(v) {
+            rng <- range(v, na.rm = TRUE)
+            if (!all(is.finite(rng)) || diff(rng) == 0) rep(0.5, length(v)) else (v - rng[1]) / diff(rng)
+          }))
+
+          trend_anno <- ComplexHeatmap::rowAnnotation(
+            trend = ComplexHeatmap::anno_link(
+              align_to = cluster_vec,
+              which = "row",
+              panel_fun = function(index, nm2) {
+                grid::grid.rect()
+                grid::grid.lines(
+                  x = seq_len(ncol(line_profiles_norm)) / ncol(line_profiles_norm),
+                  y = line_profiles_norm[as.integer(nm2), ],
+                  gp = ggfun::gpar(col = "#2b8cbe", lwd = 1)
+                )
+              },
+              side = "right",
+              size = unit(3, "cm"),
+              width = unit(5, "cm")
             )
-        )
+          )
+
+          ComplexHeatmap::Heatmap(
+            mat_ordered,
+            name = nm,
+            cluster_rows = FALSE,
+            cluster_columns = FALSE,
+            show_row_dend = FALSE,
+            show_column_dend = TRUE,
+            show_row_names = FALSE,
+            row_split = cluster_vec,
+            row_names_gp = ggfun::gpar(fontsize = 6),
+            column_names_gp = ggfun::gpar(fontsize = 8),
+            heatmap_legend_param = list(title = "Expression"),
+            right_annotation = trend_anno
+          )
+        })
+      })
+    })
+  })
+
+  # Render cluster table (directly from unique_id + cluster, joined to metadata if desired)
+  output$Cluster_table <- DT::renderDT({
+    state <- heatmap_state()
+
+    # Build a combined table; join meta by unique_id (no gene mapping)
+    df_list <- lapply(names(state), function(tbl_name) {
+      x <- state[[tbl_name]]
+      meta_df <- x$meta_df
+      datatype <- x$datatype
+
+      # Recompute unique_id for meta_df to match clustering ids (same function, same filtering)
+      unique_id <- make_unique_id(meta_df, x$mat_ordered, datatype)
+      meta_df$unique_id <- as.character(unique_id)
+
+      joined <- dplyr::inner_join(
+        meta_df,
+        x$cluster_df,
+        by = c("unique_id" = "unique_id")
+      )
+
+      # prefix cluster with dataset (your original UI convention)
+      joined$Cluster <- paste0(tbl_name, "_", joined$Cluster)
+
+      # Columns to show
+      if (datatype == "rnaseq") {
+        cols_to_show <- c("Gene_Name", "Gene_ID", "Cluster")
+      } else if (datatype == "phosphoproteomics") {
+        cols_to_show <- c("Gene_Name", "Gene_ID", "pepG", "Protein_ID", "Cluster")
+      } else if (datatype == "proteomics") {
+        cols_to_show <- c("Gene_Name", "Gene_ID", "Protein_ID", "Cluster")
+      } else {
+        cols_to_show <- c("unique_id", "Cluster")
+      }
+
+      joined %>%
+        dplyr::select(dplyr::any_of(cols_to_show)) %>%
+        dplyr::distinct()
     })
 
-    shiny::observe({
-        shiny::req(rv$intersected_matrix_processed, input$heatmap_k)
+    final_df <- dplyr::bind_rows(df_list) %>%
+      dplyr::arrange(Cluster) %>%
+      dplyr::distinct()
 
-        all_tables <- rv$intersected_matrix_processed
+    DT::datatable(
+      final_df,
+      extensions = "Buttons",
+      filter = "top",
+      options = list(
+        scrollX = TRUE,
+        pageLength = 5,
+        lengthMenu = c(5, 10, 25, 50, 100),
+        dom = "Blfrtip",
+        buttons = c("copy", "csv", "excel", "pdf", "print")
+      )
+    )
+  })
 
-        first_tbl <- all_tables[[1]]
-        mat_scaled <- first_tbl
-        
-        # Determine unique_id for each row based on datatype
-        datatype <- rv$datatype[[names(all_tables)[1]]]  # assumes all tables are same type for clustering
+  output$lfc_scatter_selector <- shiny::renderUI({
+    shiny::req(rv$scatter_plots)
+    shiny::selectInput(
+      "scatter_comparisons",
+      "Select comparison:",
+      choices = names(rv$scatter_plots)[!grepl("phosphoproteomics", names(rv$scatter_plots))]
+    )
+  })
 
-        if (datatype == "phosphoproteomics" && all(c("Gene_Name", "pepG", "Protein_ID") %in% colnames(first_tbl))) {
-            unique_id <- paste(first_tbl$Gene_Name, first_tbl$pepG, first_tbl$Protein_ID, sep = "_")
-        } else if (datatype == "proteomics" && all(c("Gene_Name", "Protein_ID") %in% colnames(first_tbl))) {
-            unique_id <- paste(first_tbl$Gene_Name, first_tbl$Protein_ID, sep = "_")
-        } else if (datatype == "rnaseq" && "Gene_Name" %in% colnames(first_tbl)) {
-            unique_id <- as.character(first_tbl$Gene_Name)
-        } else {
-            unique_id <- rownames(first_tbl)
-        }
-        unique_id <- as.character(unique_id)
-        rownames(mat_scaled) <- unique_id
+  output$lfc_scatter_ui <- shiny::renderUI({
+    shiny::req(rv$intersected_tables_processed, rv$scatter_plots)
+    if (length(names(rv$scatter_plots)[!grepl("phosphoproteomics", names(rv$scatter_plots))]) == 0) {
+      shiny::div(
+        style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
+        "Scatter plot is not available for this integration."
+      )
+    } else {
+      plotly::plotlyOutput("lfc_scatter_plot", height = "400px", width = "100%")
+    }
+  })
 
-        k <- as.integer(input$heatmap_k)
-        if (!is.finite(k) || k < 2) k <- 2
-
-        # maximum valid k is nrow(mat) - 1
-        k_max <- max(2L, nrow(mat_scaled) - 1L)
-        if (k > k_max) {
-            shiny::showNotification(
-                sprintf("Reducing k from %d to %d (only %d rows after filtering).", k, k_max, nrow(mat_scaled)),
-                type = "warning"
-            )
-            k <- k_max
-        }
-
-        # still not enough rows?
-        if (k_max < 2L) {
-            shiny::showNotification("Not enough rows for clustering (need ≥ 2).", type = "error")
-            return(NULL)
-        }
-
-        # safe kmeans
-        km <- try(stats::kmeans(mat_scaled, centers = k, nstart = 10, iter.max = 100), silent = TRUE)
-        if (inherits(km, "try-error")) {
-            shiny::showNotification("k-means failed on cleaned matrix; try smaller k or relax filters.", type = "error")
-            return(NULL)
-        }
-
-        # Get cluster labels and order of genes
-        raw_ids <- names(km$cluster)
-        # Splits "ENSDARG..._rb1" and takes "rb1"
-        clean_genes <- vapply(strsplit(raw_ids, "_"), tail, 1, FUN.VALUE = character(1)) 
-        clean_genes <- stringr::str_to_title(clean_genes)
-        # 2. Handle Duplicates (Majority Vote)
-        # If 'rb1' is in Cluster 1 (3 times) and Cluster 3 (3 times), we need a tie-breaker.
-        # This logic picks the most frequent cluster for each gene.
-        temp_map <- data.frame(Gene = clean_genes, Cluster = km$cluster, stringsAsFactors = FALSE)
-        
-        gene_map_unique <- temp_map %>%
-            dplyr::group_by(Gene) %>%
-            dplyr::count(Cluster) %>%
-            dplyr::arrange(Gene, dplyr::desc(n)) %>%
-            dplyr::slice(1) %>% # Take top cluster per gene
-            dplyr::ungroup()
-
-        # 3. Create the clean map: "rb1" -> 1
-        rv$gene_map <- setNames(as.integer(gene_map_unique$Cluster), gene_map_unique$Gene)
-        
-        # Save order for the Reference Plot (keep original detailed rownames for the first plot)
-        ordered_genes <- rownames(mat_scaled)[order(km$cluster)]
-        rv$heatmap_clusters <- list(
-            order = ordered_genes,
-            cluster = km$cluster
-        )
-
-        message("Heatmap clustering done with k =", k, "Gene map:", str(rv$gene_map), "...")
-
-        # Render heatmaps
-        lapply(names(all_tables), function(tbl) {
-            local({
-                tbl_name <- tbl
-                mat_scaled_tbl <- all_tables[[tbl_name]]                
-
-                # Use unique_id for rownames
-                if (datatype == "phosphoproteomics" && all(c("Gene_Name", "pepG", "Protein_ID") %in% colnames(mat_scaled_tbl))) {
-                    rownames(mat_scaled_tbl) <- paste(mat_scaled_tbl$Gene_Name, mat_scaled_tbl$pepG, mat_scaled_tbl$Protein_ID, sep = "_")
-                } else if (datatype == "proteomics" && all(c("Gene_Name", "Protein_ID") %in% colnames(mat_scaled_tbl))) {
-                    rownames(mat_scaled_tbl) <- paste(mat_scaled_tbl$Gene_Name, mat_scaled_tbl$Protein_ID, sep = "_")
-                } else if (datatype == "rnaseq" && "Gene_Name" %in% colnames(mat_scaled_tbl)) {
-                    rownames(mat_scaled_tbl) <- as.character(mat_scaled_tbl$Gene_Name)
-                }
-
-                meta_df <- rv$intersected_tables_processed[[tbl_name]]
-                
-                # 2. Extract Gene Names (e.g., "rb1", "Cttn")
-                # Ensure this column name matches your data exactly
-                current_genes <- stringr::str_to_title(as.character(meta_df$Gene_Name))
-                
-                # 3. Look up in the new clean map
-                cluster_vec <- factor(rv$gene_map[current_genes], levels = 1:k)
-                
-                # 4. FIX "Inf" WARNINGS: Drop unused levels
-                # If Cluster 3 is empty in this table, remove it from the factor
-                cluster_vec <- droplevels(cluster_vec)
-                valid <- !is.na(cluster_vec)
-                mat_ordered <- mat_scaled_tbl[valid, , drop = FALSE]
-                cluster_vec <- cluster_vec[valid]
-
-                ordered <- order(cluster_vec)
-                mat_ordered <- mat_ordered[ordered, , drop = FALSE]
-                cluster_vec <- cluster_vec[ordered]
-
-                output[[paste0("heatmap_", tbl_name)]] <- shiny::renderPlot({
-                    mat_scaled_tbl <- all_tables[[tbl_name]]                    
-
-                    # Build cluster average profiles
-                    cluster_ids <- split(seq_len(nrow(mat_ordered)), cluster_vec)
-                    line_profiles <- t(vapply(cluster_ids, function(idxs) {
-                        colMeans(mat_ordered[idxs, , drop = FALSE], na.rm = TRUE)
-                    }, FUN.VALUE = numeric(ncol(mat_ordered))))
-
-                    # Safeguard: avoid empty trend lines
-                    if (nrow(line_profiles) == 0 || ncol(line_profiles) == 0) {
-                        shiny::showNotification("Could not compute trend lines — data missing or clustering failed", type = "error")
-                        return(NULL)
-                    }
-
-                    # Normalize trend lines for plotting
-                    line_profiles_norm <- t(apply(line_profiles, 1, function(x) {
-                        rng <- range(x, na.rm = TRUE)
-                        if (diff(rng) == 0) rep(0.5, length(x)) else (x - rng[1]) / diff(rng)
-                    }))
-
-                    # Annotation: line plots next to each cluster
-                    trend_anno <- ComplexHeatmap::rowAnnotation(trend = ComplexHeatmap::anno_link(
-                        align_to = cluster_vec,
-                        which = "row",
-                        panel_fun = function(index, nm) {
-                            grid::grid.rect()
-                            grid::grid.lines(
-                                x = seq_len(ncol(line_profiles_norm)) / ncol(line_profiles_norm),
-                                y = line_profiles_norm[as.integer(nm), ],
-                                gp = ggfun::gpar(col = "#2b8cbe", lwd = 1)
-                            )
-                        },
-                        side = "right",
-                        size = unit(3, "cm"),
-                        width = unit(5, "cm")
-                    ))
-                    # Final heatmap with trend annotation
-                    ComplexHeatmap::Heatmap(
-                        mat_ordered,
-                        name = tbl_name,
-                        cluster_rows = FALSE,
-                        cluster_columns = FALSE,
-                        show_row_dend = FALSE,
-                        show_column_dend = TRUE,
-                        show_row_names = FALSE,
-                        row_split = cluster_vec,
-                        row_names_gp = ggfun::gpar(fontsize = 6),
-                        column_names_gp = ggfun::gpar(fontsize = 8),
-                        heatmap_legend_param = list(title = "Expression"),
-                        right_annotation = trend_anno
-                    )
-                })
-            })
-        })
-
-        # Render cluster tables
-        df_list <- lapply(names(all_tables), function(tbl) {
-            local({
-                tbl_name <- tbl
-                table <- rv$intersected_tables_processed[[tbl_name]]
-                datatype <- rv$datatype[[tbl_name]]
-
-                # --- FIX: Construct unique_id for joining, matching above ---
-                if (datatype == "phosphoproteomics" && all(c("Gene_Name", "pepG", "Protein_ID") %in% colnames(table))) {
-                    table$unique_id <- paste(table$Gene_Name, table$pepG, table$Protein_ID, sep = "_")
-                } else if (datatype == "proteomics" && all(c("Gene_Name", "Protein_ID") %in% colnames(table))) {
-                    table$unique_id <- paste(table$Gene_Name, table$Protein_ID, sep = "_")
-                } else if (datatype == "rnaseq" && "Gene_Name" %in% colnames(table)) {
-                    table$unique_id <- as.character(table$Gene_Name)
-                } else {
-                    table$unique_id <- NA
-                }
-                table$unique_id <- as.character(table$unique_id)
-                table$Gene_Name <- stringr::str_to_title(as.character(table$Gene_Name))
-                cluster_lookup <- data.frame(
-                    Gene_Name = names(rv$gene_map),
-                    Cluster = as.vector(rv$gene_map),
-                    stringsAsFactors = FALSE
-                )
-
-                # Join using Gene_Name (The universal link)
-                table_with_clusters <- dplyr::inner_join(table, cluster_lookup, by = "Gene_Name")
-
-                # Select columns to show
-                if (datatype == "rnaseq") {
-                    cols_to_show <- c("Gene_Name", "Gene_ID", "Cluster")
-                } else if (datatype == "phosphoproteomics") {
-                    cols_to_show <- c("Gene_Name", "Gene_ID", "pepG", "Protein_ID", "Cluster")
-                } else if (datatype == "proteomics") {
-                    cols_to_show <- c("Gene_Name", "Gene_ID", "Protein_ID", "Cluster")
-                } else {
-                    cols_to_show <- colnames(table_with_clusters)
-                }
-
-                table_with_clusters %>%
-                    dplyr::select(dplyr::any_of(cols_to_show)) %>%
-                    dplyr::mutate(Cluster = paste0(tbl_name, "_", Cluster)) %>%
-                    dplyr::distinct()
-            })
-        })
-
-        final_df <- do.call(bind_rows, df_list) %>%
-            dplyr::select(Gene_Name, Gene_ID, Cluster, all_of(c("Protein_ID", "pepG"))) %>%
-            dplyr::arrange(Gene_Name, Gene_ID, Cluster) %>%
-            dplyr::distinct()
-
-        output$Cluster_table <- DT::renderDT({
-                    DT::datatable(final_df %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 5, lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
-                })
-
-        output$lfc_scatter_selector <- shiny::renderUI({
-            shiny::req(rv$scatter_plots)
-            shiny::selectInput("scatter_comparisons", "Select comparison:", choices = names(rv$scatter_plots)[!grepl("phosphoproteomics", names(rv$scatter_plots))])
-        })
-
-        output$lfc_scatter_ui <- shiny::renderUI({
-            shiny::req(rv$intersected_tables_processed)
-            selected_tables <- names(rv$intersected_tables_processed)
-            shiny::req(rv$scatter_plots)
-            if (is.null(names(rv$scatter_plots)[!grepl("phosphoproteomics", names(rv$scatter_plots))]) || length(names(rv$scatter_plots)[!grepl("phosphoproteomics", names(rv$scatter_plots))]) == 0) {
-                shiny::div(
-                    style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
-                    "Scatter plot is not available for this integration."
-                )
-            } else {
-                plotly::plotlyOutput("lfc_scatter_plot", height = "400px", width = "100%")
-            }
-            
-        })
-
-        output$lfc_scatter_plot <- plotly::renderPlotly({
-            shiny::req(rv$scatter_plots)
-            shiny::req(input[["scatter_comparisons"]])
-            plotly::ggplotly(rv$scatter_plots[[input[["scatter_comparisons"]]]], tooltip = "text")
-        })
-    })
+  output$lfc_scatter_plot <- plotly::renderPlotly({
+    shiny::req(rv$scatter_plots, input[["scatter_comparisons"]])
+    plotly::ggplotly(rv$scatter_plots[[input[["scatter_comparisons"]]]], tooltip = "text")
+  })
 }
