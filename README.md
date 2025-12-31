@@ -7,10 +7,10 @@ BRIDGE is a user-friendly app that enables scientists to **explore, analyze and 
 ## Run from container
 Simply run 
 ```bash
-docker run -d --rm --name bridge -p 3838:3838 --mount type=bind,src=${YOUR_DATABASE},dst=/srv/data/database.db docker.io/jfallmann/bridge:latest
+docker run -d --rm --name bridge -p 3838:3838 --mount type=bind,src=${YOUR_DATABASE},dst=/srv/data/database.db ghcr.io/paulilab/bridge:latest
 ```
 replacing ${YOUR_DATABASE} with the full path to a database of your choice.
-You can use the test database ![here](https://github.io/jfallmann/) to get a first impression of the app.
+You can use the test database ![here](https://bridge.imp.ac.at) to get a first impression of the app.
 
 ## Installation
 
@@ -21,7 +21,7 @@ In order to download and start using bridge there are some previous steps to be 
 First, the user has to clone the git repository to the local machine.
 
 ```bash
-git clone https://github.com/dmarquezoller/BRIDGE
+git clone https://github.com/paulilab/BRIDGE
  ```
 
 After copying the repository the environment has to be set up in R so all the libraries are available.
@@ -56,7 +56,7 @@ After all this, the user will have the usable database.
 
 Both scripts assume certain homogeneity in the data. For a correct functioning of the scripts and the app, that is why we put together this set of rules to be followed both in the manual curation of the data prior to the database creation and in the creation of the database itself.
 
-###  Requirements for Your Data
+### Requirements for Your Data
 
 Before submitting tables to the database, please ensure your data follows **all** of the rules below.  
 If any rule is not met, the app will most likely crash.  
