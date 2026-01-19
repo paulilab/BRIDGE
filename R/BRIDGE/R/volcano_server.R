@@ -25,9 +25,9 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
 
         get_dep_result <- function() {
             key <- rv$current_dep_volcano_key[[tbl_name]]
-            #message("Prepping DEP results for key: ", key, ", is cached?: ", cache$exists(key))
+            # message("Prepping DEP results for key: ", key, ", is cached?: ", cache$exists(key))
             if (!is.null(key) && cache$exists(key)) {
-                #message("Getting CACHED DEP results for key: ", key)
+                # message("Getting CACHED DEP results for key: ", key)
                 return(cache$get(key))
             }
             volcano_task$result()
@@ -40,7 +40,7 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
                 sprintf("lfc=%.3f", params$lfc_cut),
                 "depflt",
                 sep = "_"
-            )            
+            )
             if (!is.null(depflt_cache[[key]])) {
                 return(depflt_cache[[key]])
             }
@@ -53,62 +53,64 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
         }
 
         volcano_task <- ExtendedTask$new(function(args) {
-            promises::future_promise({                
-                dep_output <- args$dep_output
-                contrast   <- args$contrast
-                datatype   <- args$datatype
-                p_cut      <- args$p_cut
-                lfc_cut    <- args$lfc_cut
-                highlight  <- args$highlight
-                #message("DEP RAW: ", class(dep_output))
-                lfc_col <- paste0(contrast, "_diff")
-                pval_col <- paste0(contrast, "_p.adj")
-                # message("DEP: ", class(dep_output))
-                dep_output <- strip_sig(dep_output)
-                # message("Stripped: ", class(dep_output))
-                dep_flt <- DEP2::add_rejections(dep_output, alpha = p_cut, lfc = lfc_cut)
-                # message("Filtered: ", class(dep_flt))
-                # message("Gene Info: ", head(gene_info), "\nROWS: ", nrow(gene_info), "\nColumns: ", colnames(gene_info))
-                # message("Columns: ", paste(colnames(rd), collapse = ", "))
-                df <- as.data.frame(SummarizedExperiment::rowData(dep_flt))
-                df_table <- df
-                # message("DF_table: ", head(df_table, 3), "\ndpflt: ", str(SummarizedExperiment::colData(dep_flt)))
+            promises::future_promise(
+                {
+                    dep_output <- args$dep_output
+                    contrast <- args$contrast
+                    datatype <- args$datatype
+                    p_cut <- args$p_cut
+                    lfc_cut <- args$lfc_cut
+                    highlight <- args$highlight
+                    # message("DEP RAW: ", class(dep_output))
+                    lfc_col <- paste0(contrast, "_diff")
+                    pval_col <- paste0(contrast, "_p.adj")
+                    # message("DEP: ", class(dep_output))
+                    dep_output <- strip_sig(dep_output)
+                    # message("Stripped: ", class(dep_output))
+                    dep_flt <- DEP2::add_rejections(dep_output, alpha = p_cut, lfc = lfc_cut)
+                    # message("Filtered: ", class(dep_flt))
+                    # message("Gene Info: ", head(gene_info), "\nROWS: ", nrow(gene_info), "\nColumns: ", colnames(gene_info))
+                    # message("Columns: ", paste(colnames(rd), collapse = ", "))
+                    df <- as.data.frame(SummarizedExperiment::rowData(dep_flt))
+                    df_table <- df
+                    # message("DF_table: ", head(df_table, 3), "\ndpflt: ", str(SummarizedExperiment::colData(dep_flt)))
 
-                names <- switch(datatype,
-                    proteomics        = paste0(stringr::str_to_title(df$Gene_Name), "_", df$Protein_ID),
-                    phosphoproteomics = paste0(stringr::str_to_title(df$Gene_Name), "_", df$Protein_ID, "_", df$pepG),
-                    rnaseq            = rownames(df)
-                )
-                # message("NAMING: ", head(names))
+                    names <- switch(datatype,
+                        proteomics        = paste0(stringr::str_to_title(df$Gene_Name), "_", df$Protein_ID),
+                        phosphoproteomics = paste0(stringr::str_to_title(df$Gene_Name), "_", df$Protein_ID, "_", df$pepG),
+                        rnaseq            = rownames(df)
+                    )
+                    # message("NAMING: ", head(names))
 
-                df <- data.frame(
-                    name = names,
-                    log2FC = as.numeric(df[[lfc_col]]),
-                    pval = as.numeric(df[[pval_col]]),
-                    stringsAsFactors = FALSE
-                )                
-                df <- stats::na.omit(df)
-                # message("Volcano DF: ", colnames(df), " | ", paste(head(df$name), collapse = ", "))
+                    df <- data.frame(
+                        name = names,
+                        log2FC = as.numeric(df[[lfc_col]]),
+                        pval = as.numeric(df[[pval_col]]),
+                        stringsAsFactors = FALSE
+                    )
+                    df <- stats::na.omit(df)
+                    # message("Volcano DF: ", colnames(df), " | ", paste(head(df$name), collapse = ", "))
 
-                list(
-                    df = df, table = df_table, pcut = p_cut, fccut = lfc_cut,
-                    datatype = datatype, highlight = highlight
-                )
-            }, seed = TRUE)
+                    list(
+                        df = df, table = df_table, pcut = p_cut, fccut = lfc_cut,
+                        datatype = datatype, highlight = highlight
+                    )
+                },
+                seed = TRUE
+            )
         })
 
         # Populate highlight choices
         observe({
             req(rv$tables[[tbl_name]], rv$datatype[[tbl_name]])
-            choices <- switch(
-                rv$datatype[[tbl_name]],
+            choices <- switch(rv$datatype[[tbl_name]],
                 phosphoproteomics = paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$pepG),
                 rnaseq = if (!is.null(rv$tables[[tbl_name]]$Gene_ID)) {
-                            paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$Gene_ID)
-                         } else {
-                            rownames(rv$tables[[tbl_name]])
-                         },
-                         paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$Gene_ID) # proteomics default
+                    paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$Gene_ID)
+                } else {
+                    rownames(rv$tables[[tbl_name]])
+                },
+                paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$Gene_ID) # proteomics default
             )
             updateSelectizeInput(session, "volcano_search", choices = sort(unique(choices)), server = TRUE)
         })
@@ -120,14 +122,13 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
                 volcano_ready(TRUE)
 
                 params <- list(
-                    contrast     = isolate(input$comparison_volcano),
-                    p_cut        = isolate(input$volcano_pcutoff), # raw FDR (0..1)
-                    lfc_cut      = isolate(input$volcano_fccutoff),
-                    highlight    = isolate(input$volcano_search) |> stringr::str_trim(),
-                    dep_output   = isolate(rv$dep_output[[tbl_name]]),
-                    datatype     = isolate(rv$datatype[[tbl_name]]),
+                    contrast = isolate(input$comparison_volcano),
+                    p_cut = isolate(input$volcano_pcutoff), # raw FDR (0..1)
+                    lfc_cut = isolate(input$volcano_fccutoff),
+                    highlight = isolate(input$volcano_search) |> stringr::str_trim(),
+                    dep_output = isolate(rv$dep_output[[tbl_name]]),
+                    datatype = isolate(rv$datatype[[tbl_name]]),
                     columns_key <- paste(sort(trimws(isolate(rv$data_cols[[tbl_name]]))), collapse = "_")
-
                 )
                 last_params(params)
                 key <- paste(
@@ -238,7 +239,7 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
                 title = NULL, subtitle = NULL, caption = NULL,
                 pCutoff = p_cut,
                 FCcutoff = lfc_cut,
-                colCustom = keyvals, 
+                colCustom = keyvals,
                 xlab = "Log[2] fold change",
                 ylab = "-Log[10] Padj",
                 drawConnectors = FALSE,
@@ -253,52 +254,50 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
         })
 
         output$volcano_sig_table <- DT::renderDT({
-           params <- req(last_params())
-           res <- req(get_dep_result())
-           req(res)
-           # message("Filtered DEGs: ", class(dep_flt))
+            params <- req(last_params())
+            res <- req(get_dep_result())
+            req(res)
 
-           key <- rv$current_dep_volcano_key[[tbl_name]]
-           if (!is.null(key) && !cache$exists(key)) cache$set(key, res)
+            key <- rv$current_dep_volcano_key[[tbl_name]]
+            if (!is.null(key) && !cache$exists(key)) cache$set(key, res)
 
-           dep_flt <- get_depflt(params)
-           if (methods::is(dep_flt, "DEGdata")) {
-               df <- res$table
-               df$name <- rownames(df)
-               df$Gene_ID <- gsub("^(.*)_", "", rownames(df))
-               gene_map <- rv$tables[[tbl_name]][, c("Gene_ID", "Gene_Name")]
-               df <- dplyr::left_join(df, gene_map, by = "names")
+            dep_flt <- get_depflt(params)
+            if (methods::is(dep_flt, "DEGdata")) {
+                df <- res$table
+                df$name <- rownames(df)
+                df$Gene_ID <- gsub("^(.*)_", "", rownames(df))
+                gene_map <- rv$tables[[tbl_name]][, c("Gene_ID", "Gene_Name")]
+                df <- dplyr::left_join(df, gene_map, by = "Gene_ID")
 
-               sig <- as.data.frame(dep_flt@test_result)
-               sig$Gene_ID <- gsub("^(.*)_", "", rownames(dep_flt@test_result))
-               sig$Gene_Name <- gsub("_.*$", "", rownames(sig))
-               sig <- dplyr::left_join(sig, gene_map, by = "names")
-               sig_genes <- sig$Gene_Name[sig$significant]
+                sig <- as.data.frame(dep_flt@test_result)
+                sig$Gene_ID <- gsub("^(.*)_", "", rownames(sig))
+                sig <- dplyr::left_join(sig, gene_map, by = "Gene_ID")
+                sig_genes <- sig$Gene_Name[sig$significant]
 
-               df_filtered <- df[stringr::str_to_lower(df$Gene_Name) %in% stringr::str_to_lower(sig_genes), , drop = FALSE]
-               rownames(df_filtered) <- NULL
-               df_filtered <- df_filtered %>%
-                   dplyr::select(Gene_ID, Gene_Name, name, everything()) %>%
-                       dplyr::mutate(Gene_Name = stringr::str_to_title(Gene_Name))
-           } else {
-               rd <- SummarizedExperiment::rowData(dep_flt)
-               sig_genes <- rd$Gene_Name[rd$significant]
-               df_filtered <- res$table[stringr::str_to_lower(res$table$Gene_Name) %in% stringr::str_to_lower(sig_genes), , drop = FALSE] %>% dplyr::select(-ID)
-               df_filtered$name <- rownames(df_filtered)
-               rownames(df_filtered) <- NULL
-               df_filtered <- df_filtered %>%
-                   dplyr::select(Gene_ID, Gene_Name, name, everything()) %>%
-                   mutate(Gene_Name = stringr::str_to_title(Gene_Name))
-           }
+                df_filtered <- df[stringr::str_to_lower(df$Gene_Name) %in% stringr::str_to_lower(sig_genes), , drop = FALSE]
+                rownames(df_filtered) <- NULL
+                df_filtered <- df_filtered %>%
+                    dplyr::select(Gene_ID, Gene_Name, name, everything()) %>%
+                    dplyr::mutate(Gene_Name = stringr::str_to_title(Gene_Name))
+            } else {
+                rd <- SummarizedExperiment::rowData(dep_flt)
+                sig_genes <- rd$Gene_Name[rd$significant]
+                df_filtered <- res$table[stringr::str_to_lower(res$table$Gene_Name) %in% stringr::str_to_lower(sig_genes), , drop = FALSE] %>% dplyr::select(-ID)
+                df_filtered$name <- rownames(df_filtered)
+                rownames(df_filtered) <- NULL
+                df_filtered <- df_filtered %>%
+                    dplyr::select(Gene_ID, Gene_Name, name, everything()) %>%
+                    mutate(Gene_Name = stringr::str_to_title(Gene_Name))
+            }
 
-           DT::datatable(df_filtered %>% dplyr::select(where(~!is.numeric(.)), where(is.numeric)),
-               extensions = "Buttons",
-               filter = "top",
-               options = list(
-                   scrollX = TRUE, pageLength = 10,
-                   lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")
-               )
-           )
+            DT::datatable(df_filtered %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)),
+                extensions = "Buttons",
+                filter = "top",
+                options = list(
+                    scrollX = TRUE, pageLength = 10,
+                    lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")
+                )
+            )
         })
     })
 }
