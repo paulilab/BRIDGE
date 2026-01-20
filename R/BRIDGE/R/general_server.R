@@ -267,8 +267,8 @@ server_function <- function(input, output, session, db_path) {
                         fluidRow(RawHeatmapUI(paste0("RawHeatmap_", tbl_name), tbl_name))
                     ),
                     tabPanel(
-                        "DEP Heatmap",
-                        fluidRow(DepHeatmapUI(paste0("DepHeatmap_", tbl_name), tbl_name))
+                        "DE Heatmap",
+                        fluidRow(DepHeatmapUI(paste0("DEHeatmap_", tbl_name), tbl_name))
                     ),
                     tabPanel(
                         "Volcano Plot",
@@ -354,7 +354,7 @@ server_function <- function(input, output, session, db_path) {
 
             # DEP / PCA depend on dep_output
             if (!(tbl %in% wired$dep) && has_dep(tbl)) {
-                DepHeatmapServer(paste0("DepHeatmap_", tbl), rv, cache, tbl)
+                DepHeatmapServer(paste0("DEHeatmap_", tbl), rv, cache, tbl)
                 VolcanoServer(paste0("Volcano_", tbl), rv, cache, tbl)
                 wired$dep <- union(wired$dep, tbl)
             }
