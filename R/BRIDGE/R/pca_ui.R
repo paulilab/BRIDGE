@@ -12,21 +12,11 @@ pcaUI <- function(id, tbl_name) {
                     style = "simple", color = "primary", size = "sm"
                 )
             ),
-            column(
-                3,
-                shinyWidgets::switchInput(
-                    ns("interactive"),
-                    "Interactive plot",
-                    value = FALSE,
-                    onLabel = "YES",
-                    offLabel = "NO",
-                    width = "auto"
-                )
-            ),
-            column(6, uiOutput(ns("plot_download_ui")))
+            column(5, uiOutput(ns("pc_axes_ui"))),
+            column(4, uiOutput(ns("plot_download_ui")))
         ),
         shinycssloaders::withSpinner(
-            uiOutput(ns("plot_slot")),
+            plotOutput(ns("plot"), height = "480px"),
             type = 8, color = "#2b8cbe", caption = "Loading..."
         ),
         h5(),

@@ -38,14 +38,10 @@ pcaServer <- function(id, rv, tbl_name) {
                     mutate(contribution = (loading^2) / sum(loading^2)) %>%
                     ungroup()
 
-                top_contrib <- contrib %>%
-                    filter(PC == "PC1" | PC == "PC2") %>%
-                    arrange(desc(contribution))
-
                 list(
                     score_df = score_df,
                     var_expl = var_expl,
-                    top_contrib = as.data.frame(top_contrib)
+                    top_contrib = as.data.frame(contrib)
                 )
             })
         })
@@ -58,41 +54,52 @@ pcaServer <- function(id, rv, tbl_name) {
             ignoreInit = TRUE
         )
 
+        output$pc_axes_ui <- renderUI({
+            res <- pca_task$result()
+            if (is.null(res) || is.null(res$score_df)) {
+                return(div(style = "padding-top: 6px; color: #777;", "Compute PCA to select axes."))
+            }
+            pc_choices <- grep("^PC[0-9]+$", colnames(res$score_df), value = TRUE)
+            req(length(pc_choices) >= 2)
+
+            x_sel <- if (!is.null(input$x_pc) && input$x_pc %in% pc_choices) input$x_pc else pc_choices[1]
+            y_default <- if (length(pc_choices) >= 2) pc_choices[2] else pc_choices[1]
+            y_sel <- if (!is.null(input$y_pc) && input$y_pc %in% pc_choices) input$y_pc else y_default
+
+            fluidRow(
+                column(6, selectInput(session$ns("x_pc"), "X axis", choices = pc_choices, selected = x_sel)),
+                column(6, selectInput(session$ns("y_pc"), "Y axis", choices = pc_choices, selected = y_sel))
+            )
+        })
+
         pca_plot <- reactive({
             res <- pca_task$result()
             req(res)
             score_df <- res$score_df
-            req(is.data.frame(score_df), "PC1" %in% colnames(score_df), "PC2" %in% colnames(score_df))
+            req(is.data.frame(score_df))
+
+            x_pc <- req(input$x_pc)
+            y_pc <- req(input$y_pc)
+            validate(need(x_pc != y_pc, "Please choose two different PCs for X and Y axes."))
+            req(x_pc %in% colnames(score_df), y_pc %in% colnames(score_df))
 
             var_expl <- res$var_expl
-            x_lab <- sprintf("PC1 (%.1f%%)", 100 * var_expl[1])
-            y_lab <- sprintf("PC2 (%.1f%%)", 100 * var_expl[2])
+            x_idx <- as.integer(sub("PC", "", x_pc))
+            y_idx <- as.integer(sub("PC", "", y_pc))
+            req(is.finite(x_idx), is.finite(y_idx), x_idx <= length(var_expl), y_idx <= length(var_expl))
+            x_lab <- sprintf("%s (%.1f%%)", x_pc, 100 * var_expl[x_idx])
+            y_lab <- sprintf("%s (%.1f%%)", y_pc, 100 * var_expl[y_idx])
 
-            ggplot2::ggplot(score_df, ggplot2::aes(x = .data$PC1, y = .data$PC2, color = .data$group, text = .data$sample)) +
+            ggplot2::ggplot(score_df, ggplot2::aes(x = .data[[x_pc]], y = .data[[y_pc]], color = .data$group, text = .data$sample)) +
                 ggplot2::geom_point(size = 3, alpha = 0.9) +
                 ggplot2::labs(x = x_lab, y = y_lab, color = "Group") +
                 ggplot2::theme_minimal()
-        })
-
-        output$plot_slot <- renderUI({
-            if (isTRUE(input$interactive)) {
-                plotly::plotlyOutput(session$ns("plotly"), height = "480px")
-            } else {
-                plotOutput(session$ns("plot"), height = "480px")
-            }
         })
 
         output$plot <- renderPlot({
             pca_plot() +
                 ggplot2::ggtitle(paste("PCA for", tbl_name)) +
                 ggplot2::theme_minimal()
-        })
-
-        output$plotly <- plotly::renderPlotly({
-            plotly::ggplotly(
-                pca_plot() + ggplot2::ggtitle(paste("PCA for", tbl_name)),
-                tooltip = c("text", "x", "y", "colour")
-            )
         })
 
         output$plot_download_ui <- renderUI({
@@ -126,6 +133,12 @@ pcaServer <- function(id, rv, tbl_name) {
                 )))
             }
             req(!is.null(top_contrib))
+            selected_pcs <- unique(stats::na.omit(c(input$x_pc, input$y_pc)))
+            if (length(selected_pcs)) {
+                top_contrib <- top_contrib %>% dplyr::filter(PC %in% selected_pcs)
+            }
+            top_contrib <- top_contrib %>% dplyr::arrange(PC, dplyr::desc(contribution))
+
             DT::datatable(top_contrib %>% dplyr::select(where(~!is.numeric(.)), where(is.numeric)),
                 extensions = "Buttons",
                 filter = "top",
