@@ -65,6 +65,29 @@ RawHeatmapServer <- function(id, rv, tbl_name) {
                 show_row_names = FALSE
             )
         })
+
+        output$plot_download_ui <- renderUI({
+            if (!isTRUE(ready())) return(NULL)
+            plot_download_controls(session$ns, "raw_ht")
+        })
+
+        register_plot_download(
+            input = input,
+            output = output,
+            session = session,
+            id_prefix = "raw_ht",
+            filename_prefix = paste0("raw_heatmap_", tbl_name),
+            plot_fun = function() {
+                res <- task$result()
+                req(res)
+                ComplexHeatmap::Heatmap(res$clean_matrix,
+                    show_row_dend = FALSE,
+                    show_row_names = FALSE
+                )
+            },
+            width = 10,
+            height = 8
+        )
     })
 }
 
@@ -701,6 +724,52 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
                 )
             )
         })
+
+        output$dep_plot_download_ui <- renderUI({
+            if (!isTRUE(state$heatmap_ready)) return(NULL)
+            plot_download_controls(ns, "dep_ht")
+        })
+
+        register_plot_download(
+            input = input,
+            output = output,
+            session = session,
+            id_prefix = "dep_ht",
+            filename_prefix = paste0("dep_heatmap_", tbl_name),
+            plot_fun = function() {
+                req(isTRUE(state$heatmap_ready))
+                params <- req(state$last_params)
+                dep_flt_list <- get_depflt(params)
+                local_mat <- dep_flt_list$mat_scaled
+                req(!is.null(local_mat), nrow(local_mat) > 0L, ncol(local_mat) > 0L)
+
+                k <- NULL
+                if (isTRUE(params$clustering)) {
+                    k <- as.integer(params$k)
+                    k_max <- max(2L, nrow(local_mat) - 1L)
+                    if (!is.finite(k) || k < 2L) k <- 2L
+                    if (k > k_max) k <- k_max
+                }
+
+                if (!is.null(k)) {
+                    ComplexHeatmap::Heatmap(
+                        local_mat,
+                        row_km = k,
+                        show_row_names = FALSE,
+                        cluster_columns = FALSE
+                    )
+                } else {
+                    ComplexHeatmap::Heatmap(
+                        local_mat,
+                        cluster_rows = FALSE,
+                        show_row_names = FALSE,
+                        cluster_columns = FALSE
+                    )
+                }
+            },
+            width = 10,
+            height = 10
+        )
 
 
         output$optimal_k <- renderUI({

@@ -49,6 +49,7 @@ integration_ui <- function(input, output, session, rv) {
                                 choices = c("Continous", "Log-scale"),
                                 selected = "Continous"
                             ),
+                            uiOutput("integration_datapoints_download_ui"),
                             plotOutput("integration_datapoints_plot")
                         )
                     )
@@ -102,6 +103,7 @@ integration_ui <- function(input, output, session, rv) {
                         shinydashboard::box(
                             title = "LFC Scatterplot", width = 12, status = "info", solidHeader = TRUE, collapsible = TRUE, collapsed = FALSE,
                             shiny::uiOutput("lfc_scatter_selector"),
+                            shiny::uiOutput("lfc_scatter_download_ui"),
                             shiny::uiOutput("lfc_scatter_ui")
                         )
                     )

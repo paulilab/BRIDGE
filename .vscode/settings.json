@@ -1,0 +1,12 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "Pauli",
+            "group": "Pauli",
+            "database": "~/Work/Pauli/DataViz/Database/PauliLab_all.db"
+        }
+    ],
+    "sqltools.useNodeRuntime": true
+}

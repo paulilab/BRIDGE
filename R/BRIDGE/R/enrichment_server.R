@@ -1,6 +1,27 @@
 #' @export
 EnrichmentServer <- function(id, rv, tbl_name) {
     moduleServer(id, function(input, output, session) {
+        enrichment_plot_obj <- reactiveVal(NULL)
+
+        output$plot_download_ui <- renderUI({
+            if (is.null(enrichment_plot_obj())) return(NULL)
+            plot_download_controls(session$ns, "enrichment")
+        })
+
+        register_plot_download(
+            input = input,
+            output = output,
+            session = session,
+            id_prefix = "enrichment",
+            filename_prefix = paste0("enrichment_", tbl_name),
+            plot_fun = function() {
+                req(!is.null(enrichment_plot_obj()))
+                enrichment_plot_obj()
+            },
+            width = 9,
+            height = 6
+        )
+
         # Populate contrast choices when available
         strip_sig <- function(dep_obj) {
             if (methods::is(dep_obj, "DEGdata")) {
@@ -48,6 +69,7 @@ EnrichmentServer <- function(id, rv, tbl_name) {
 
                 # Phospho: show message and stop
                 if (identical(rv$datatype[[tbl_name]], "phosphoproteomics")) {
+                    enrichment_plot_obj(NULL)
                     output$enrichment <- renderUI({
                         div(
                             style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
@@ -80,6 +102,7 @@ EnrichmentServer <- function(id, rv, tbl_name) {
                 sig_count <- check_sig(dep_pg)
                 #message("Significant hits for enrichment: ", sig_count)
                 if (sig_count < 10) {                
+                    enrichment_plot_obj(NULL)
                     output$enrichment <- renderUI({
                         div(
                             style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
@@ -126,11 +149,13 @@ EnrichmentServer <- function(id, rv, tbl_name) {
                     })
 
                     if (!is.null(res_ora)) {
+                        enrichment_plot_obj(enrichplot::dotplot(res_ora))
                         output$enrichment <- renderUI({
                             plotOutput(session$ns("enrichment_plot"), height = "520px")
                         })
                         output$enrichment_plot <- renderPlot({
-                            enrichplot::dotplot(res_ora)
+                            req(!is.null(enrichment_plot_obj()))
+                            enrichment_plot_obj()
                         })
                     }
                 }

@@ -4,6 +4,24 @@ int_heatmap_server <- function(input, output, session, rv) {
   output$integrated_heatmaps <- shiny::renderUI({
     shiny::req(rv$intersected_matrix_processed, input$heatmap_k)
     htmltools::tagList(
+      shiny::div(
+        style = "display:flex; gap:10px; align-items:end; flex-wrap:wrap; margin-bottom:10px;",
+        shiny::selectInput(
+          "integration_heatmap_download_table",
+          "Heatmap dataset",
+          choices = names(rv$intersected_matrix_processed),
+          selected = names(rv$intersected_matrix_processed)[1],
+          width = "260px"
+        ),
+        shiny::selectInput(
+          "integration_heatmap_download_download_format",
+          "Download format",
+          choices = c("pdf", "svg"),
+          selected = "pdf",
+          width = "150px"
+        ),
+        shiny::downloadButton("integration_heatmap_download_download", "Download plot")
+      ),
       lapply(names(rv$intersected_matrix_processed), function(tbl) {
         plotOutput(outputId = paste0("heatmap_", tbl), width = "80%")
       }),
@@ -254,4 +272,68 @@ int_heatmap_server <- function(input, output, session, rv) {
     shiny::req(rv$scatter_plots, input[["scatter_comparisons"]])
     plotly::ggplotly(rv$scatter_plots[[input[["scatter_comparisons"]]]], tooltip = "text")
   })
+
+  output$lfc_scatter_download_ui <- shiny::renderUI({
+    if (is.null(rv$scatter_plots) || !length(rv$scatter_plots)) return(NULL)
+    available <- names(rv$scatter_plots)[!grepl("phosphoproteomics", names(rv$scatter_plots))]
+    if (!length(available)) return(NULL)
+    plot_download_controls(session$ns, "lfc_scatter")
+  })
+
+  register_plot_download(
+    input = input,
+    output = output,
+    session = session,
+    id_prefix = "lfc_scatter",
+    filename_prefix = "integration_lfc_scatter",
+    plot_fun = function() {
+      shiny::req(rv$scatter_plots, input[["scatter_comparisons"]])
+      rv$scatter_plots[[input[["scatter_comparisons"]]]]
+    },
+    width = 8,
+    height = 6
+  )
+
+  output$integration_heatmap_download_download <- shiny::downloadHandler(
+    filename = function() {
+      fmt <- input$integration_heatmap_download_download_format
+      if (is.null(fmt) || !(fmt %in% c("pdf", "svg"))) fmt <- "pdf"
+      tbl <- input$integration_heatmap_download_table
+      if (is.null(tbl) || !nzchar(tbl)) tbl <- "integration"
+      paste0("integration_heatmap_", tbl, "_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".", fmt)
+    },
+    content = function(file) {
+      fmt <- input$integration_heatmap_download_download_format
+      if (is.null(fmt) || !(fmt %in% c("pdf", "svg"))) fmt <- "pdf"
+      if (identical(fmt, "svg")) {
+        grDevices::svg(file, width = 10, height = 8)
+      } else {
+        grDevices::pdf(file, width = 10, height = 8, onefile = FALSE)
+      }
+      on.exit(grDevices::dev.off(), add = TRUE)
+
+      state <- heatmap_state()
+      tbl <- input$integration_heatmap_download_table
+      shiny::req(tbl, tbl %in% names(state))
+
+      x <- state[[tbl]]
+      ComplexHeatmap::draw(
+        ComplexHeatmap::Heatmap(
+          x$mat_ordered,
+          name = tbl,
+          cluster_rows = FALSE,
+          cluster_columns = FALSE,
+          show_row_dend = FALSE,
+          show_column_dend = TRUE,
+          show_row_names = FALSE,
+          row_split = x$cluster_vec,
+          row_names_gp = ggfun::gpar(fontsize = 6),
+          column_names_gp = ggfun::gpar(fontsize = 8),
+          heatmap_legend_param = list(title = "Expression")
+        ),
+        merge_legend = TRUE,
+        newpage = FALSE
+      )
+    }
+  )
 }

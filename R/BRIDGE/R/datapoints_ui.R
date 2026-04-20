@@ -16,6 +16,7 @@ datapointsUI <- function(id, tbl_name) {
             hr(),
             # DT::DTOutput(ns("data_plot_dt")),
             # br(),
+            uiOutput(ns("plot_download_ui")),
             plotOutput(ns("data_plot"), height = "520px")
         )
     )

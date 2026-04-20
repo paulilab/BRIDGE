@@ -2,8 +2,28 @@
 VolcanoServer <- function(id, rv, cache, tbl_name) {
     moduleServer(id, function(input, output, session) {
         volcano_ready <- reactiveVal(FALSE)
+        volcano_ggplot_obj <- reactiveVal(NULL)
         last_params <- reactiveVal(NULL) # <- only changes on button click
         depflt_cache <- reactiveValues() # in-memory cache of filtered object per (table, columns_key, p, lfc)
+
+        output$plot_download_ui <- renderUI({
+            if (is.null(volcano_ggplot_obj())) return(NULL)
+            plot_download_controls(session$ns, "volcano")
+        })
+
+        register_plot_download(
+            input = input,
+            output = output,
+            session = session,
+            id_prefix = "volcano",
+            filename_prefix = paste0("volcano_", tbl_name),
+            plot_fun = function() {
+                req(!is.null(volcano_ggplot_obj()))
+                volcano_ggplot_obj()
+            },
+            width = 9,
+            height = 6
+        )
 
         strip_sig <- function(dep_obj) {
             # message("Stripping old sig cols")
@@ -128,7 +148,7 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
                     highlight = isolate(input$volcano_search) |> stringr::str_trim(),
                     dep_output = isolate(rv$dep_output[[tbl_name]]),
                     datatype = isolate(rv$datatype[[tbl_name]]),
-                    columns_key <- paste(sort(trimws(isolate(rv$data_cols[[tbl_name]]))), collapse = "_")
+                    columns_key = paste(sort(trimws(isolate(rv$data_cols[[tbl_name]]))), collapse = "_")
                 )
                 last_params(params)
                 key <- paste(
@@ -208,6 +228,7 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
             }
             df <- df[is.finite(df$log2FC) & is.finite(df$pval), , drop = FALSE]
             if (!nrow(df)) {
+                volcano_ggplot_obj(NULL)
                 showNotification("No finite points to plot for this contrast.", type = "warning")
                 return(plotly::plot_ly())
             }
@@ -247,6 +268,7 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
                 labSize = 3,
                 legendPosition = "none"
             ) + ggplot2::aes(text = name)
+            volcano_ggplot_obj(p)
 
             # message("Rendering volcano plot with ", nrow(df), " points.", str(p))
 

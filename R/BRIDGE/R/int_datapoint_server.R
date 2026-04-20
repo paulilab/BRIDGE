@@ -47,7 +47,7 @@ int_datapoints_server <- function(input, output, session, data_combined, referen
             summarize(MeanExpression = mean(Expression, na.rm = TRUE), .groups = "drop")
     })
 
-    output$integration_datapoints_plot <- shiny::renderPlot({
+    integration_datapoints_plot <- reactive({
         long <- data_long()
         avg <- data_avg()
 
@@ -64,4 +64,23 @@ int_datapoints_server <- function(input, output, session, data_combined, referen
                 strip.text = element_text(face = "bold")
             )
     })
+
+    output$integration_datapoints_plot <- shiny::renderPlot({
+        integration_datapoints_plot()
+    })
+
+    output$integration_datapoints_download_ui <- shiny::renderUI({
+        plot_download_controls(session$ns, "integration_datapoints")
+    })
+
+    register_plot_download(
+        input = input,
+        output = output,
+        session = session,
+        id_prefix = "integration_datapoints",
+        filename_prefix = "integration_datapoints",
+        plot_fun = function() integration_datapoints_plot(),
+        width = 11,
+        height = 7
+    )
 }

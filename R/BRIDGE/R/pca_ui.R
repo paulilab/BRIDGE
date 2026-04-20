@@ -4,12 +4,29 @@ pcaUI <- function(id, tbl_name) {
 
     shinydashboard::box(
         title = "PCA", width = 12, solidHeader = TRUE, status = "info",
-        shinyWidgets::actionBttn(ns("compute"),
-            span("Compute PCA", style = "color: white;"),
-            style = "simple", color = "primary", size = "sm"
+        fluidRow(
+            column(
+                3,
+                shinyWidgets::actionBttn(ns("compute"),
+                    span("Compute PCA", style = "color: white;"),
+                    style = "simple", color = "primary", size = "sm"
+                )
+            ),
+            column(
+                3,
+                shinyWidgets::switchInput(
+                    ns("interactive"),
+                    "Interactive plot",
+                    value = FALSE,
+                    onLabel = "YES",
+                    offLabel = "NO",
+                    width = "auto"
+                )
+            ),
+            column(6, uiOutput(ns("plot_download_ui")))
         ),
         shinycssloaders::withSpinner(
-            plotOutput(ns("plot"), height = "480px"),
+            uiOutput(ns("plot_slot")),
             type = 8, color = "#2b8cbe", caption = "Loading..."
         ),
         h5(),

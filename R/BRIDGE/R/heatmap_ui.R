@@ -21,6 +21,7 @@ RawHeatmapUI <- function(id, tbl_name) {
                     span("Compute Raw Heatmap", style = "color:white;"),
                     style = "simple", color = "primary", size = "sm"
                 ),
+                uiOutput(ns("plot_download_ui")),
                 p("Might take long for first run.")
             ),
             column(
@@ -67,6 +68,7 @@ DepHeatmapUI <- function(id, tbl_name) {
                     span("Compute Heatmap", style = "color: white;"),
                     style = "simple", color = "primary", size = "sm"
                 ),
+                uiOutput(ns("dep_plot_download_ui")),
                 h1(),
                 uiOutput(ns("optimal_k")) # <- fixed id (no paste0 with tbl_name)
             )

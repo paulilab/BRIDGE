@@ -1,63 +1,37 @@
 #' @export
 pcaServer <- function(id, rv, tbl_name) {
     moduleServer(id, function(input, output, session) {
-        ns <- session$ns
-        get_gene_loadings <- function(dep, ntop = 500, center = TRUE, scale. = FALSE, pcs = 1:2, rank_by = c("abs", "pos", "neg")) {
-            rank_by <- match.arg(rank_by)
-            mat <- assay(dep)
-            rv <- matrixStats::rowVars(mat)
-            select <- head(order(rv, decreasing = TRUE), min(ntop, length(rv)))
-            # avoid device warnings on workers
-            tmp <- tempfile(fileext = ".pdf")
-            pdf(tmp)
-            on.exit(
-                {
-                    dev.off()
-                    unlink(tmp)
-                },
-                add = TRUE
-            )
-            pca <- prcomp(t(mat[select, , drop = FALSE]), center = center, scale. = scale.)
-
-            loadings <- pca$rotation # rows = genes (selected); cols = PCs
-            var_expl <- pca$sdev^2 / sum(pca$sdev^2)
-
-            df <- as.data.frame(loadings) |>
-                rownames_to_column("gene") |>
-                pivot_longer(cols = starts_with("PC"), names_to = "PC", values_to = "loading") |>
-                mutate(
-                    abs_loading = abs(loading),
-                    pc_idx = as.integer(sub("PC", "", PC)),
-                    var_explained = var_expl[pc_idx]
-                )
-
-            rank_col <- switch(rank_by,
-                abs = "abs_loading",
-                pos = "loading",
-                neg = "loading"
-            )
-            if (rank_by == "neg") df <- df |> mutate(loading = -loading) # so largest = most negative
-            df <- df |>
-                group_by(PC) |>
-                arrange(desc(!!sym(if (rank_by == "abs") "abs_loading" else "loading"))) |>
-                mutate(rank = row_number()) |>
-                ungroup()
-
-            # restore original sign if we flipped
-            if (rank_by == "neg") df <- df |> mutate(loading = -loading)
-
-            df
-        }
-
         pca_task <- ExtendedTask$new(function(dep) {
             promises::future_promise({
-                DESeq2::DESeqTransform(dep)
-            })
-        })
+                mat <- SummarizedExperiment::assay(dep)
+                vars <- matrixStats::rowVars(mat)
+                select <- head(order(vars, decreasing = TRUE), min(500, length(vars)))
 
-        pca_loadings_task <- ExtendedTask$new(function(dep) {
-            promises::future_promise({
-                loadings_df <- get_gene_loadings(dep, ntop = 500, pcs = 1:3, rank_by = "abs")
+                pca <- stats::prcomp(t(mat[select, , drop = FALSE]), center = TRUE, scale. = FALSE)
+                var_expl <- pca$sdev^2 / sum(pca$sdev^2)
+
+                # PCA score data for plotting
+                score_df <- as.data.frame(pca$x)
+                score_df$sample <- rownames(score_df)
+
+                cd <- as.data.frame(SummarizedExperiment::colData(dep))
+                if ("condition" %in% colnames(cd)) {
+                    score_df$group <- as.factor(cd$condition)
+                } else if (ncol(cd) > 0) {
+                    score_df$group <- as.factor(cd[[1]])
+                } else {
+                    score_df$group <- as.factor(score_df$sample)
+                }
+
+                # Top-contribution table for PC loadings
+                loadings_df <- as.data.frame(pca$rotation) |>
+                    rownames_to_column("gene") |>
+                    pivot_longer(cols = starts_with("PC"), names_to = "PC", values_to = "loading") |>
+                    mutate(
+                        abs_loading = abs(loading),
+                        pc_idx = as.integer(sub("PC", "", PC)),
+                        var_explained = var_expl[pc_idx]
+                    )
 
                 contrib <- loadings_df %>%
                     group_by(PC) %>%
@@ -67,7 +41,12 @@ pcaServer <- function(id, rv, tbl_name) {
                 top_contrib <- contrib %>%
                     filter(PC == "PC1" | PC == "PC2") %>%
                     arrange(desc(contribution))
-                top_contrib
+
+                list(
+                    score_df = score_df,
+                    var_expl = var_expl,
+                    top_contrib = as.data.frame(top_contrib)
+                )
             })
         })
 
@@ -75,24 +54,71 @@ pcaServer <- function(id, rv, tbl_name) {
             {
                 req(rv$dep_output[[tbl_name]])
                 pca_task$invoke(isolate(rv$dep_output[[tbl_name]]))
-                pca_loadings_task$invoke(isolate(rv$dep_output[[tbl_name]]))
             },
             ignoreInit = TRUE
         )
 
-        output$plot <- renderPlot({
+        pca_plot <- reactive({
             res <- pca_task$result()
             req(res)
-            DESeq2::plotPCA(res) +
+            score_df <- res$score_df
+            req(is.data.frame(score_df), "PC1" %in% colnames(score_df), "PC2" %in% colnames(score_df))
+
+            var_expl <- res$var_expl
+            x_lab <- sprintf("PC1 (%.1f%%)", 100 * var_expl[1])
+            y_lab <- sprintf("PC2 (%.1f%%)", 100 * var_expl[2])
+
+            ggplot2::ggplot(score_df, ggplot2::aes(x = .data$PC1, y = .data$PC2, color = .data$group, text = .data$sample)) +
+                ggplot2::geom_point(size = 3, alpha = 0.9) +
+                ggplot2::labs(x = x_lab, y = y_lab, color = "Group") +
+                ggplot2::theme_minimal()
+        })
+
+        output$plot_slot <- renderUI({
+            if (isTRUE(input$interactive)) {
+                plotly::plotlyOutput(session$ns("plotly"), height = "480px")
+            } else {
+                plotOutput(session$ns("plot"), height = "480px")
+            }
+        })
+
+        output$plot <- renderPlot({
+            pca_plot() +
                 ggplot2::ggtitle(paste("PCA for", tbl_name)) +
                 ggplot2::theme_minimal()
         })
+
+        output$plotly <- plotly::renderPlotly({
+            plotly::ggplotly(
+                pca_plot() + ggplot2::ggtitle(paste("PCA for", tbl_name)),
+                tooltip = c("text", "x", "y", "colour")
+            )
+        })
+
+        output$plot_download_ui <- renderUI({
+            plot_download_controls(session$ns, "pca")
+        })
+
+        register_plot_download(
+            input = input,
+            output = output,
+            session = session,
+            id_prefix = "pca",
+            filename_prefix = paste0("pca_", tbl_name),
+            plot_fun = function() {
+                pca_plot() + ggplot2::ggtitle(paste("PCA for", tbl_name))
+            },
+            width = 9,
+            height = 6
+        )
+
         output$pcs_panel <- renderUI({
             DT::DTOutput(session$ns("pcs"), height = "300px")
         })
 
         output$pcs <- DT::renderDT({
-            top_contrib <- pca_loadings_task$result()
+            res <- pca_task$result()
+            top_contrib <- if (!is.null(res)) res$top_contrib else NULL
             if (is.null(top_contrib)) {
                 validate(need(FALSE, htmltools::tagList(
                     tags$span(class = "lds-ring", tags$div(), tags$div(), tags$div(), tags$div()),
@@ -100,7 +126,6 @@ pcaServer <- function(id, rv, tbl_name) {
                 )))
             }
             req(!is.null(top_contrib))
-            top_contrib <- as.data.frame(top_contrib)
             DT::datatable(top_contrib %>% dplyr::select(where(~!is.numeric(.)), where(is.numeric)),
                 extensions = "Buttons",
                 filter = "top",

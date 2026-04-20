@@ -39,6 +39,7 @@ VolcanoUI <- function(id, tbl_name, contrasts) {
             ),
             shinydashboard::box(
                 title = "Volcano Plot", width = 7, solidHeader = TRUE, status = "info",
+                uiOutput(ns("plot_download_ui")),
                 uiOutput(ns("volcano_slot"))
             )
         ),

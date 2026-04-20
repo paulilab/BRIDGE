@@ -18,6 +18,7 @@ EnrichmentUI <- function(id, tbl_name) {
         ),
         shinydashboard::box(
             title = "Enrichment results", width = 12, solidHeader = TRUE, status = "info",
+            uiOutput(ns("plot_download_ui")),
             uiOutput(ns("enrichment")) # will insert plotOutput(ns("enrichment_plot")) or a message
         )
     )

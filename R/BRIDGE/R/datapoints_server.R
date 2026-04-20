@@ -98,8 +98,7 @@ datapointsServer <- function(id, rv, tbl_name) {
             )
         })
 
-        # --- plot output ---
-        output$data_plot <- renderPlot({
+        datapoints_plot <- reactive({
             dl <- long_data()
             if (identical(rv$datatype[[tbl_name]], "phosphoproteomics")) {
                 data_avg <- dplyr::summarise(dplyr::group_by(dl, StageGroup, Gene_pepG),
@@ -195,5 +194,24 @@ datapointsServer <- function(id, rv, tbl_name) {
                     )
             }
         })
+
+        output$data_plot <- renderPlot({
+            datapoints_plot()
+        })
+
+        output$plot_download_ui <- renderUI({
+            plot_download_controls(session$ns, "data_plot")
+        })
+
+        register_plot_download(
+            input = input,
+            output = output,
+            session = session,
+            id_prefix = "data_plot",
+            filename_prefix = paste0("datapoints_", tbl_name),
+            plot_fun = function() datapoints_plot(),
+            width = 10,
+            height = 6
+        )
     })
 }
