@@ -149,6 +149,8 @@ pcaServer <- function(id, rv, cache, tbl_name) {
         })
 
         output$plot_download_ui <- renderUI({
+            res <- get_pca_result()
+            if (is.null(res) || is.null(res$score_df)) return(NULL)
             plot_download_controls(session$ns, "pca")
         })
 
