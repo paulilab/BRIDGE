@@ -1,55 +1,62 @@
 #' @export
 pcaServer <- function(id, rv, tbl_name) {
     moduleServer(id, function(input, output, session) {
-        pca_task <- ExtendedTask$new(function(dep) {
+        pca_task <- ExtendedTask$new(function(mat, group, ntop) {
             promises::future_promise({
-                mat <- SummarizedExperiment::assay(dep)
                 vars <- matrixStats::rowVars(mat)
-                select <- head(order(vars, decreasing = TRUE), min(500, length(vars)))
+                ntop <- as.integer(ntop)
+                if (!is.finite(ntop) || ntop < 2L) ntop <- 500L
+                select <- head(order(vars, decreasing = TRUE), min(ntop, length(vars)))
+                xmat <- t(mat[select, , drop = FALSE])
 
-                pca <- stats::prcomp(t(mat[select, , drop = FALSE]), center = TRUE, scale. = FALSE)
+                # We never need more than 10 PCs in the UI; cap for speed.
+                max_rank <- min(10L, max(1L, nrow(xmat) - 1L), ncol(xmat))
+                pca <- stats::prcomp(xmat, center = TRUE, scale. = FALSE, rank. = max_rank)
                 var_expl <- pca$sdev^2 / sum(pca$sdev^2)
 
                 # PCA score data for plotting
                 score_df <- as.data.frame(pca$x)
                 score_df$sample <- rownames(score_df)
 
-                cd <- as.data.frame(SummarizedExperiment::colData(dep))
-                if ("condition" %in% colnames(cd)) {
-                    score_df$group <- as.factor(cd$condition)
-                } else if (ncol(cd) > 0) {
-                    score_df$group <- as.factor(cd[[1]])
-                } else {
+                if (is.null(group) || length(group) != nrow(score_df)) {
                     score_df$group <- as.factor(score_df$sample)
+                } else {
+                    score_df$group <- as.factor(group)
                 }
-
-                # Top-contribution table for PC loadings
-                loadings_df <- as.data.frame(pca$rotation) |>
-                    rownames_to_column("gene") |>
-                    pivot_longer(cols = starts_with("PC"), names_to = "PC", values_to = "loading") |>
-                    mutate(
-                        abs_loading = abs(loading),
-                        pc_idx = as.integer(sub("PC", "", PC)),
-                        var_explained = var_expl[pc_idx]
-                    )
-
-                contrib <- loadings_df %>%
-                    group_by(PC) %>%
-                    mutate(contribution = (loading^2) / sum(loading^2)) %>%
-                    ungroup()
 
                 list(
                     score_df = score_df,
                     var_expl = var_expl,
-                    top_contrib = as.data.frame(contrib)
+                    rotation = as.data.frame(pca$rotation)
                 )
             })
         })
 
+        loadings_cache <- reactiveVal(NULL)
+
+        get_top_n <- function() {
+            n <- suppressWarnings(as.integer(input$top_n_features))
+            if (!is.finite(n) || n < 2L) n <- 500L
+            n
+        }
+
         observeEvent(input$compute,
             {
                 req(rv$dep_output[[tbl_name]])
-                pca_task$invoke(isolate(rv$dep_output[[tbl_name]]))
+                n_top <- get_top_n()
+                dep <- isolate(rv$dep_output[[tbl_name]])
+                mat <- SummarizedExperiment::assay(dep)
+                cd <- as.data.frame(SummarizedExperiment::colData(dep))
+                grp <- if ("condition" %in% colnames(cd)) {
+                    cd$condition
+                } else if (ncol(cd) > 0) {
+                    cd[[1]]
+                } else {
+                    colnames(mat)
+                }
+
+                pca_task$invoke(mat, grp, n_top)
+                loadings_cache(NULL)
             },
             ignoreInit = TRUE
         )
@@ -60,7 +67,9 @@ pcaServer <- function(id, rv, tbl_name) {
                 return(div(style = "padding-top: 6px; color: #777;", "Compute PCA to select axes."))
             }
             pc_choices <- grep("^PC[0-9]+$", colnames(res$score_df), value = TRUE)
-            req(length(pc_choices) >= 2)
+            if (length(pc_choices) < 2) {
+                return(div(style = "padding-top: 6px; color: #777;", "Need at least 2 PCs to select axes."))
+            }
 
             x_sel <- if (!is.null(input$x_pc) && input$x_pc %in% pc_choices) input$x_pc else pc_choices[1]
             y_default <- if (length(pc_choices) >= 2) pc_choices[2] else pc_choices[1]
@@ -124,8 +133,31 @@ pcaServer <- function(id, rv, tbl_name) {
         })
 
         output$pcs <- DT::renderDT({
-            res <- pca_task$result()
-            top_contrib <- if (!is.null(res)) res$top_contrib else NULL
+            top_contrib <- loadings_cache()
+            if (is.null(top_contrib)) {
+                res <- pca_task$result()
+                req(res, res$rotation, res$var_expl)
+
+                loadings_df <- as.data.frame(res$rotation) |>
+                    rownames_to_column("gene") |>
+                    pivot_longer(cols = starts_with("PC"), names_to = "PC", values_to = "loading") |>
+                    mutate(
+                        abs_loading = abs(loading),
+                        pc_idx = as.integer(sub("PC", "", PC)),
+                        var_explained = res$var_expl[pc_idx]
+                    )
+
+                top_contrib <- loadings_df %>%
+                    group_by(PC) %>%
+                    mutate(contribution = (loading^2) / sum(loading^2)) %>%
+                    arrange(desc(contribution), .by_group = TRUE) %>%
+                    slice_head(n = 200) %>%
+                    ungroup() %>%
+                    as.data.frame()
+
+                loadings_cache(top_contrib)
+            }
+
             if (is.null(top_contrib)) {
                 validate(need(FALSE, htmltools::tagList(
                     tags$span(class = "lds-ring", tags$div(), tags$div(), tags$div(), tags$div()),

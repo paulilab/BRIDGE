@@ -6,13 +6,24 @@ pcaUI <- function(id, tbl_name) {
         title = "PCA", width = 12, solidHeader = TRUE, status = "info",
         fluidRow(
             column(
-                3,
+                2,
                 shinyWidgets::actionBttn(ns("compute"),
                     span("Compute PCA", style = "color: white;"),
                     style = "simple", color = "primary", size = "sm"
                 )
             ),
-            column(5, uiOutput(ns("pc_axes_ui"))),
+            column(
+                2,
+                numericInput(
+                    ns("top_n_features"),
+                    "Top variable features",
+                    value = 500,
+                    min = 50,
+                    max = 5000,
+                    step = 50
+                )
+            ),
+            column(4, uiOutput(ns("pc_axes_ui"))),
             column(4, uiOutput(ns("plot_download_ui")))
         ),
         shinycssloaders::withSpinner(
