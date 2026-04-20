@@ -1,5 +1,5 @@
 #' @export
-pcaServer <- function(id, rv, tbl_name) {
+pcaServer <- function(id, rv, cache, tbl_name) {
     moduleServer(id, function(input, output, session) {
         pca_task <- ExtendedTask$new(function(mat, group, ntop) {
             promises::future_promise({
@@ -32,6 +32,8 @@ pcaServer <- function(id, rv, tbl_name) {
             })
         })
 
+        pca_result_cache <- reactiveVal(NULL)
+        pca_cache_key <- reactiveVal(NULL)
         loadings_cache <- reactiveVal(NULL)
 
         get_top_n <- function() {
@@ -40,10 +42,40 @@ pcaServer <- function(id, rv, tbl_name) {
             n
         }
 
+        get_pca_key <- function(n_top) {
+            cols <- isolate(rv$data_cols[[tbl_name]])
+            cols_key <- if (is.null(cols) || !length(cols)) "no_cols" else paste(sort(trimws(cols)), collapse = "_")
+            paste(
+                tbl_name,
+                cols_key,
+                paste0("ntop=", as.integer(n_top)),
+                "rank=10",
+                "pca_v1",
+                sep = "_"
+            )
+        }
+
+        get_pca_result <- function() {
+            res_cached <- pca_result_cache()
+            if (!is.null(res_cached)) return(res_cached)
+
+            res_task <- pca_task$result()
+            if (!is.null(res_task)) {
+                key <- pca_cache_key()
+                if (!is.null(cache) && !is.null(key) && !cache$exists(key)) {
+                    cache$set(key, res_task)
+                }
+                pca_result_cache(res_task)
+            }
+            res_task
+        }
+
         observeEvent(input$compute,
             {
                 req(rv$dep_output[[tbl_name]])
                 n_top <- get_top_n()
+                key <- get_pca_key(n_top)
+                pca_cache_key(key)
                 dep <- isolate(rv$dep_output[[tbl_name]])
                 mat <- SummarizedExperiment::assay(dep)
                 cd <- as.data.frame(SummarizedExperiment::colData(dep))
@@ -55,14 +87,19 @@ pcaServer <- function(id, rv, tbl_name) {
                     colnames(mat)
                 }
 
-                pca_task$invoke(mat, grp, n_top)
+                if (!is.null(cache) && cache$exists(key)) {
+                    pca_result_cache(cache$get(key))
+                } else {
+                    pca_result_cache(NULL)
+                    pca_task$invoke(mat, grp, n_top)
+                }
                 loadings_cache(NULL)
             },
             ignoreInit = TRUE
         )
 
         output$pc_axes_ui <- renderUI({
-            res <- pca_task$result()
+            res <- get_pca_result()
             if (is.null(res) || is.null(res$score_df)) {
                 return(div(style = "padding-top: 6px; color: #777;", "Compute PCA to select axes."))
             }
@@ -82,7 +119,7 @@ pcaServer <- function(id, rv, tbl_name) {
         })
 
         pca_plot <- reactive({
-            res <- pca_task$result()
+            res <- get_pca_result()
             req(res)
             score_df <- res$score_df
             req(is.data.frame(score_df))
@@ -135,7 +172,7 @@ pcaServer <- function(id, rv, tbl_name) {
         output$pcs <- DT::renderDT({
             top_contrib <- loadings_cache()
             if (is.null(top_contrib)) {
-                res <- pca_task$result()
+                res <- get_pca_result()
                 req(res, res$rotation, res$var_expl)
 
                 loadings_df <- as.data.frame(res$rotation) |>

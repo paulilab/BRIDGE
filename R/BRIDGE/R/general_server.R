@@ -359,7 +359,7 @@ server_function <- function(input, output, session, db_path) {
                 wired$dep <- union(wired$dep, tbl)
             }
             if (!(tbl %in% wired$pca) && has_dep(tbl)) {
-                pcaServer(paste0("pca_", tbl), rv, tbl)
+                pcaServer(paste0("pca_", tbl), rv, cache, tbl)
                 wired$pca <- union(wired$pca, tbl)
             }
 
