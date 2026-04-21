@@ -4,6 +4,24 @@
 
 BRIDGE is a user-friendly app that enables scientists to **explore, analyze and integrate multi-omics datasets** (proteomics, phosphoproteomics and RNA-seq) interactively, privately and without the need of programming skills. It supports both **individual** and **integrative** analysis of datasets and generates interactive visualizations such as heatmaps, volcano plots, and time-course. BRIDGE is especially powerful for identifying shared biological signals across different omics layers. 
 
+## Documentation
+
+This repository includes an MkDocs documentation scaffold under `docs/` and `mkdocs.yml`, including:
+
+- introduction and quickstart pages
+- installation and database-generation setup
+- strict data requirements and loading workflow
+- one page per analysis module
+- dedicated raw and processed integration guides
+- practical examples and FAQ
+
+To build docs locally:
+
+```bash
+python -m pip install -r requirements-docs.txt
+python -m mkdocs serve
+```
+
 ## Run from container
 Simply run 
 ```bash

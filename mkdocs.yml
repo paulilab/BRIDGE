@@ -1,0 +1,24 @@
+site_name: BRIDGE
+
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+  - Introduction: intro.md
+  - Quickstart: quickstart.md
+  - Installation: installation.md
+  - Database Generation: database-generation.md
+  - Data Requirements: data-requirements.md
+  - Examples: examples.md
+  - Loading Data: loading-data.md
+  - Individual Exploration: individual-exploration.md
+  - Raw Heatmap: raw-heatmap.md
+  - DE Heatmap: de-heatmap.md
+  - Volcano Plot: volcano-plot.md
+  - Gene Expression: gene-expression.md
+  - Enrichment Analysis: enrichment-analysis.md
+  - PCA: pca.md
+  - Raw Integration: raw-integration.md
+  - Processed Integration: processed-integration.md
+  - FAQ: faq.md
