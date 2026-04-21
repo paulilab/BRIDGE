@@ -40,8 +40,8 @@ vignettes/*.pdf
 .Renviron
 renv/*
 
-# pkgdown site
-docs/
+# Documentation build output
+site/
 
 # translation temp files
 po/*~
