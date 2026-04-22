@@ -8,7 +8,7 @@ BRIDGE is a user-friendly app that enables scientists to **explore, analyze and 
 
 This repository includes an MkDocs documentation scaffold under `docs/` and `mkdocs.yml`, including:
 
-- introduction and quickstart pages
+- introduction and installation pages
 - installation and database-generation setup
 - strict data requirements and loading workflow
 - one page per analysis module

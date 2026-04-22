@@ -6,7 +6,6 @@ theme:
 nav:
   - Home: index.md
   - Introduction: intro.md
-  - Quickstart: quickstart.md
   - Installation: installation.md
   - Database Generation: database-generation.md
   - Data Requirements: data-requirements.md
