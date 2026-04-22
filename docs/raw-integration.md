@@ -30,8 +30,4 @@ Practical tips:
 - Alignment is positional, so order matters.
 - In phosphoproteomics, one gene can map to multiple peptide lines.
 
-Suggested figure for this page:
-
-- File: `docs/assets/figures/raw_integration_preview_and_plot.png`
-- Capture: preview panel and integrated trend plot.
-- Callouts: column matching, integrate action, combined output.
+`<figure 7: Raw Integration preview and integrated trend output, emphasizing column matching across datasets before integration.>`

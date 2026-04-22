@@ -31,8 +31,4 @@ Practical tips:
 - If clusters are unstable, try fewer/more conservative features first.
 - Use alongside Volcano Plot for consistency checks.
 
-Suggested figure for this page:
-
-- File: `docs/assets/figures/de_heatmap_thresholds.png`
-- Capture: DE heatmap settings + rendered output.
-- Callouts: thresholds, clustering toggle, resulting cluster blocks.
+`<figure 2: DE Heatmap settings and output, highlighting threshold controls, clustering options, and resulting cluster structure.>`

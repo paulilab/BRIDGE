@@ -2,7 +2,9 @@
 
 BRIDGE can be run with Docker or locally.
 
-Docker run:
+## Fastest start (Docker)
+
+Run:
 
 ```bash
 docker run -d --rm \
@@ -12,36 +14,43 @@ docker run -d --rm \
   ghcr.io/paulilab/bridge:latest
 ```
 
-Local run prerequisites:
+Then open:
+
+```text
+http://localhost:3838
+```
+
+## Local setup
+
+Prerequisites:
 
 - R
 - Python
 - A BRIDGE-compatible SQLite database
 
-Local setup:
+Clone the repository:
 
 ```bash
 git clone https://github.com/paulilab/BRIDGE
 cd BRIDGE
 ```
 
+Restore the R environment:
+
 ```r
 renv::restore()
 ```
+
+Run the app:
 
 ```bash
 Rscript app.R user_database.db
 ```
 
-Optional documentation setup:
+If you do not have a database yet, go to [Database Generation](database-generation.md).
 
-```bash
-python -m pip install -r requirements-docs.txt
-python -m mkdocs serve
-```
+## First-session checklist
 
-If `mkdocs serve` uses the wrong binary, run:
-
-```bash
-python -m mkdocs serve
-```
+1. Load one dataset in the Data Selection panel.
+2. Open `Individual Exploration` and run one plot (for example Volcano Plot).
+3. Load a second dataset and test `Raw Integration`.

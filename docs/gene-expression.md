@@ -36,8 +36,4 @@ Practical tips:
 - Validate stage ordering and replicate naming in your input columns.
 - Compare transformed and continuous views before conclusions.
 
-Suggested figure for this page:
-
-- File: `docs/assets/figures/gene_expression_multigene.png`
-- Capture: multi-gene plot with transformation selector visible.
-- Callouts: selected genes, scale choice, stage axis.
+`<figure 4: Gene Expression module with multiple selected genes, visible transformation selector, and stage-wise trend lines.>`

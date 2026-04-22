@@ -32,8 +32,4 @@ Interpretation tips:
 - Check that highlighted candidates behave as expected under chosen contrast.
 - Use same thresholds when comparing across runs.
 
-Suggested figure for this page:
-
-- File: `docs/assets/figures/volcano_plot_example.png`
-- Capture: computed volcano with at least one highlighted feature.
-- Callouts: contrast selector, thresholds, highlighted label.
+`<figure 3: Volcano Plot after compute, including contrast selection, p-value/LFC thresholds, and one highlighted feature label.>`

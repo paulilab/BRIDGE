@@ -27,8 +27,4 @@ Notes:
 - This module is for first-pass inspection.
 - It does not apply significance filtering.
 
-Suggested figure for this page:
-
-- File: `docs/assets/figures/raw_heatmap_example.png`
-- Capture: one computed raw heatmap for a loaded showcase dataset.
-- Callouts: sample axis, feature axis, visible global trend.
+`<figure 1: Raw Heatmap view after compute, showing sample axis, feature axis, and overall signal pattern across selected datapoints.>`

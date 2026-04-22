@@ -34,8 +34,4 @@ Important notes:
 - If very few significant features pass thresholds, results may be empty.
 - Phosphoproteomics enrichment may be unavailable depending on data/object context.
 
-Suggested figure for this page:
-
-- File: `docs/assets/figures/enrichment_dotplot_example.png`
-- Capture: enrichment controls + dot plot output.
-- Callouts: contrast selector, database selector, hit-count-dependent behavior.
+`<figure 5: Enrichment Analysis controls and resulting dot plot, showing contrast choice, enrichment database, and significant-term output.>`

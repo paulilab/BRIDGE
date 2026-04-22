@@ -19,6 +19,6 @@ What this guide covers:
 Recommended reading order:
 
 1. [Introduction](intro.md)
-2. [Quickstart](quickstart.md)
+2. [Installation](installation.md)
 3. [Database Generation](database-generation.md)
 4. [Data Requirements](data-requirements.md)

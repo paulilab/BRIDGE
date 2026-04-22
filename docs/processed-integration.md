@@ -42,8 +42,4 @@ Interpretation tips:
 - If intersection is too small, relax thresholds.
 - Check preview dimensions before interpreting cluster patterns.
 
-Suggested figure for this page:
-
-- File: `docs/assets/figures/processed_integration_flow_and_outputs.png`
-- Capture: settings panel, preview dimensions, and resulting heatmaps/scatter.
-- Callouts: contrast selection, thresholds, intersection outcome.
+`<figure 8: Processed Integration workflow with settings panel, preview dimensions, integrated heatmaps, and LFC comparison output.>`

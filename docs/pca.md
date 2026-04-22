@@ -27,8 +27,4 @@ Interpretation tips:
 - Unexpected grouping can indicate technical variation or annotation issues.
 - Pair PCA interpretation with raw/de views before filtering decisions.
 
-Suggested figure for this page:
-
-- File: `docs/assets/figures/pca_example_with_loadings.png`
-- Capture: PCA plot and loadings table from the same dataset.
-- Callouts: principal components and top contributing features.
+`<figure 6: PCA module output with PCA scatter view and feature loadings table for top contributing genes/proteins.>`
