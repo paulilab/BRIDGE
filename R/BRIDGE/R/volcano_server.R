@@ -190,6 +190,27 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
             res <- get_dep_result()
             req(res)
 
+            volcano_mode <- tolower(Sys.getenv("BRIDGE_VOLCANO_RENDER_MODE", "native"))
+
+            build_native_volcano <- function(df_native) {
+                plotly::plot_ly(
+                    data = df_native,
+                    x = ~log2FC,
+                    y = ~neglog10p,
+                    type = "scattergl",
+                    mode = "markers",
+                    color = ~dir,
+                    colors = c(down = "royalblue", ns = "grey80", up = "red"),
+                    text = ~name,
+                    hoverinfo = "text",
+                    marker = list(size = 6, opacity = 0.75)
+                ) |>
+                    plotly::layout(
+                        xaxis = list(title = "Log2 fold change"),
+                        yaxis = list(title = "-Log10 Padj")
+                    )
+            }
+
             df <- res$df
             # message("DF: ", colnames(df), " | ", paste(head(df$name), collapse = ", "))
             highlight <- params$highlight
@@ -279,6 +300,9 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
             volcano_ggplot_obj(p)
 
             # message("Rendering volcano plot with ", nrow(df), " points.", str(p))
+            if (!identical(volcano_mode, "enhanced")) {
+                return(build_native_volcano(df))
+            }
 
             tryCatch(
                 {
@@ -286,26 +310,10 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
                 },
                 error = function(e) {
                     showNotification(
-                        paste("Interactive volcano conversion failed. Using fallback renderer.", conditionMessage(e)),
+                        paste("Enhanced volcano conversion failed. Falling back to native renderer.", conditionMessage(e)),
                         type = "warning"
                     )
-
-                    plotly::plot_ly(
-                        data = df,
-                        x = ~log2FC,
-                        y = ~neglog10p,
-                        type = "scattergl",
-                        mode = "markers",
-                        color = ~dir,
-                        colors = c(down = "royalblue", ns = "grey80", up = "red"),
-                        text = ~name,
-                        hoverinfo = "text",
-                        marker = list(size = 6, opacity = 0.75)
-                    ) |>
-                        plotly::layout(
-                            xaxis = list(title = "Log2 fold change"),
-                            yaxis = list(title = "-Log10 Padj")
-                        )
+                    build_native_volcano(df)
                 }
             )
         })

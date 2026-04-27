@@ -1,7 +1,14 @@
-if (!require(BRIDGE)) {
+bridge_pkg_path <- file.path(getwd(), "R", "BRIDGE")
+bridge_dev_sync <- Sys.getenv("BRIDGE_DEV_SYNC", "1") == "1"
+
+if (dir.exists(bridge_pkg_path) && bridge_dev_sync) {
     library(devtools)
-    devtools::document("R/BRIDGE")
-    devtools::install("R/BRIDGE", keep_source = T, upgrade = "never")    
+    devtools::document(bridge_pkg_path)
+    devtools::install(bridge_pkg_path, keep_source = TRUE, upgrade = "never")
+}
+
+if (!require(BRIDGE)) {
+    stop("BRIDGE package is not available. Install from R/BRIDGE or set BRIDGE_DEV_SYNC=1 when running from repository root.")
 }
 #print("Loading BRIDGE package")
 library(BRIDGE)
@@ -30,9 +37,18 @@ ht_opt$message <- FALSE
 configure_future_backend <- function() {
     backend <- tolower(Sys.getenv("BRIDGE_FUTURE_BACKEND", "auto"))
     workers_env <- suppressWarnings(as.integer(Sys.getenv("BRIDGE_FUTURE_WORKERS", NA)))
+    max_workers <- 2L
 
-    auto_workers <- max(1L, future::availableCores() - 1L)
-    workers <- if (!is.na(workers_env) && workers_env >= 1L) workers_env else auto_workers
+    auto_workers <- min(max_workers, max(1L, future::availableCores() - 1L))
+    workers_raw <- if (!is.na(workers_env) && workers_env >= 1L) workers_env else auto_workers
+    workers <- min(max_workers, max(1L, workers_raw))
+
+    if (!is.na(workers_env) && workers_env > max_workers) {
+        warning(sprintf(
+            "BRIDGE_FUTURE_WORKERS=%d exceeds hard cap %d; using %d.",
+            workers_env, max_workers, workers
+        ))
+    }
 
     if (identical(backend, "callr")) {
         future::plan(future.callr::callr, workers = workers)
