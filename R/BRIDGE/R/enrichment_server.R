@@ -2,6 +2,8 @@
 EnrichmentServer <- function(id, rv, tbl_name) {
     moduleServer(id, function(input, output, session) {
         enrichment_plot_obj <- reactiveVal(NULL)
+        enrichment_dep_ready <- reactiveVal(FALSE)
+        enrichment_dep_error <- reactiveVal(NULL)
 
         output$plot_download_ui <- renderUI({
             if (is.null(enrichment_plot_obj())) return(NULL)
@@ -63,6 +65,37 @@ EnrichmentServer <- function(id, rv, tbl_name) {
             )
         })
 
+        # Preflight dependencies when species context is available.
+        # This keeps package/org-db installation out of the compute click path.
+        observeEvent(rv$species[[tbl_name]], {
+            req(rv$species[[tbl_name]])
+
+            species <- stringr::str_to_title(rv$species[[tbl_name]])
+            if (!(species %in% c("Zebrafish", "Human", "Mouse"))) {
+                species <- "Human"
+            }
+
+            enrichment_dep_ready(FALSE)
+            enrichment_dep_error(NULL)
+
+            tryCatch({
+                DEP2::check_enrichment_depends()
+                DEP2::check_organismDB_depends(species, install = TRUE)
+                enrichment_dep_ready(TRUE)
+            }, error = function(e) {
+                enrichment_dep_error(conditionMessage(e))
+                enrichment_dep_ready(FALSE)
+                showNotification(
+                    paste0(
+                        "Enrichment dependencies are not ready for species '", species,
+                        "'. Please check package/org-db installation.\nDetails: ", conditionMessage(e)
+                    ),
+                    type = "error",
+                    duration = NULL
+                )
+            })
+        }, ignoreInit = FALSE)
+
         observeEvent(input$compute_enrichment,
             {
                 req(rv$dep_output[[tbl_name]], rv$datatype[[tbl_name]], rv$species[[tbl_name]])
@@ -79,13 +112,26 @@ EnrichmentServer <- function(id, rv, tbl_name) {
                     return(invisible())
                 }
 
+                if (!isTRUE(enrichment_dep_ready())) {
+                    detail <- enrichment_dep_error()
+                    output$enrichment <- renderUI({
+                        div(
+                            style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
+                            if (!is.null(detail) && nzchar(detail)) {
+                                paste0("Enrichment dependencies are not ready yet: ", detail)
+                            } else {
+                                "Enrichment dependencies are still being prepared. Please retry in a moment."
+                            }
+                        )
+                    })
+                    return(invisible())
+                }
+
                 species <- stringr::str_to_title(rv$species[[tbl_name]])
                 enrichment_type <- input$comparison_db
                 contrast <- input$contrasts_enrichment
                 dep_output <- rv$dep_output[[tbl_name]]
 
-                DEP2::check_enrichment_depends()
-                DEP2::check_organismDB_depends(species, install = TRUE)                
                 # Fallback for unsupported organisms
                 Gene_Names <- stringr::str_to_lower(gsub("_.*$", "", rownames(dep_output)))
                 #rownames(dep_output) <- stringr::str_to_upper(rownames(dep_output))
