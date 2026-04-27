@@ -161,16 +161,34 @@ server_function <- function(input, output, session, db_path) {
 
 
         datatype <- strsplit(input$selected_table, "_")[[1]][2]
-        if (!(table_id %in% rv$table_names)) {
-            rv$tables[[table_id]] <- new_data
+        is_reload <- table_id %in% rv$table_names
+
+        # Always refresh table-specific state so new column selections take effect.
+        per_table_slots <- c(
+            "tables", "ht_matrix", "id_cols", "data_cols", "datatype",
+            "species", "annotation", "dep_output", "contrasts", "constrasts",
+            "current_dep_heatmap_key", "current_dep_volcano_key"
+        )
+        for (slot in per_table_slots) {
+            if (!is.null(rv[[slot]]) && !is.null(rv[[slot]][[table_id]])) {
+                rv[[slot]][[table_id]] <- NULL
+            }
+        }
+        if (!is.null(rv$heatmap_state) && !is.null(rv$heatmap_state[[table_id]])) {
+            rv$heatmap_state[[table_id]] <- NULL
+        }
+
+        rv$tables[[table_id]] <- new_data
+        matrix_data <- new_data[, datapoint_cols]
+        rv$ht_matrix[[table_id]] <- as.matrix(matrix_data)
+        rv$id_cols[[table_id]] <- id_cols
+        rv$data_cols[[table_id]] <- input$datapoints_selected
+        rv$datatype[[table_id]] <- datatype
+        rv$species[[table_id]] <- input$species
+        rv$annotation[[table_id]] <- annotation_data
+
+        if (!is_reload) {
             rv$table_names <- c(rv$table_names, table_id)
-            matrix_data <- new_data[, datapoint_cols]
-            rv$ht_matrix[[table_id]] <- as.matrix(matrix_data)
-            rv$id_cols[[table_id]] <- id_cols
-            rv$data_cols[[table_id]] <- input$datapoints_selected
-            rv$datatype[[table_id]] <- datatype
-            rv$species[[table_id]] <- input$species
-            rv$annotation[[table_id]] <- annotation_data
         }
 
         cache_key <- paste(table_id, paste(rv$data_cols[[table_id]], collapse = "_"), "dep", sep = "_")
