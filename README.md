@@ -54,6 +54,31 @@ Both this scripts can be executed as many times as needed.
 
 After all this, the user will have the usable database.
 
+### Interactive database builder app (recommended)
+
+To avoid running Python scripts manually, BRIDGE now includes a stand-alone Shiny app that wraps the database generation scripts interactively.
+
+Start it with:
+
+```bash
+Rscript app_db_builder.R
+```
+
+It will open a local UI where you can:
+
+- set or create the SQLite database path
+- upload (or reference) raw CSV/TSV files
+- preview columns to select identifier/datapoint indices
+- run `Python/db_adding.py` with your selected options
+- run `Python/db_adding_annotation.py` for annotation tables
+- optionally attach processed `.rds` objects
+
+By default it runs on port `3839`. You can override this with:
+
+```bash
+BRIDGE_DB_BUILDER_PORT=3840 Rscript app_db_builder.R
+```
+
 Both scripts assume certain homogeneity in the data. For a correct functioning of the scripts and the app, that is why we put together this set of rules to be followed both in the manual curation of the data prior to the database creation and in the creation of the database itself.
 
 ### Requirements for Your Data
