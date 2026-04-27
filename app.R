@@ -26,8 +26,58 @@ suppressPackageStartupMessages({
 # library(shinydashboard)
 # library(shinyWidgets)
 ht_opt$message <- FALSE
-# future::plan(multisession, workers = 4)
-future::plan(future.callr::callr, workers = 4)
+
+configure_future_backend <- function() {
+    backend <- tolower(Sys.getenv("BRIDGE_FUTURE_BACKEND", "auto"))
+    workers_env <- suppressWarnings(as.integer(Sys.getenv("BRIDGE_FUTURE_WORKERS", NA)))
+
+    auto_workers <- max(1L, future::availableCores() - 1L)
+    workers <- if (!is.na(workers_env) && workers_env >= 1L) workers_env else auto_workers
+
+    if (identical(backend, "callr")) {
+        future::plan(future.callr::callr, workers = workers)
+        return(invisible(list(backend = "callr", workers = workers)))
+    }
+
+    if (identical(backend, "multisession")) {
+        future::plan(future::multisession, workers = workers)
+        return(invisible(list(backend = "multisession", workers = workers)))
+    }
+
+    # auto: prefer persistent workers on Linux for lower per-task startup overhead,
+    # and fallback to callr for portability/stability.
+    if (identical(backend, "auto")) {
+        if (tolower(Sys.info()[["sysname"]]) == "linux") {
+            future::plan(future::multisession, workers = workers)
+            return(invisible(list(backend = "multisession", workers = workers)))
+        }
+
+        future::plan(future.callr::callr, workers = workers)
+        return(invisible(list(backend = "callr", workers = workers)))
+    }
+
+    warning(
+        sprintf(
+            "Unknown BRIDGE_FUTURE_BACKEND='%s'. Falling back to auto.",
+            backend
+        )
+    )
+
+    if (tolower(Sys.info()[["sysname"]]) == "linux") {
+        future::plan(future::multisession, workers = workers)
+        return(invisible(list(backend = "multisession", workers = workers)))
+    }
+
+    future::plan(future.callr::callr, workers = workers)
+    invisible(list(backend = "callr", workers = workers))
+}
+
+future_cfg <- configure_future_backend()
+message(sprintf("BRIDGE async backend: %s (%d worker%s)",
+    future_cfg$backend,
+    future_cfg$workers,
+    ifelse(future_cfg$workers == 1L, "", "s")
+))
 set.seed(42)
 
 #print("Getting CLI arguments")
