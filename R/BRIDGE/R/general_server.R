@@ -207,15 +207,37 @@ server_function <- function(input, output, session, db_path) {
         shiny::updateSelectInput(session, "remove", choices = rv$table_names, selected = NULL)
     })
 
+    clear_table_state <- function(table_id) {
+        if (is.null(table_id) || !nzchar(table_id)) return(invisible(NULL))
+
+        per_table_slots <- c(
+            "tables", "ht_matrix", "id_cols", "data_cols", "datatype",
+            "species", "annotation", "dep_output", "contrasts", "constrasts",
+            "current_dep_heatmap_key", "current_dep_volcano_key"
+        )
+
+        for (slot in per_table_slots) {
+            if (!is.null(rv[[slot]]) && !is.null(rv[[slot]][[table_id]])) {
+                rv[[slot]][[table_id]] <- NULL
+            }
+        }
+
+        if (!is.null(rv$heatmap_state) && !is.null(rv$heatmap_state[[table_id]])) {
+            rv$heatmap_state[[table_id]] <- NULL
+        }
+
+        rv$table_names <- setdiff(rv$table_names, table_id)
+        invisible(NULL)
+    }
+
     # DELETE DATA BUTTON SERVER
 
     shiny::observeEvent(input$delete_data, {
         shiny::req(input$remove)
 
         if (input$remove %in% rv$table_names) {
-            # Remove the table from reactive values
-            rv$tables[[input$remove]] <- NULL
-            rv$table_names <- setdiff(rv$table_names, input$remove)
+            # Remove all per-table state
+            clear_table_state(input$remove)
 
             # Optionally reset the dropdown selection
             shiny::updateSelectInput(session, "remove", choices = rv$table_names, selected = NULL)
