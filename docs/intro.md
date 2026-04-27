@@ -9,6 +9,15 @@ Core idea:
 - BRIDGE creates per-dataset analysis workspaces.
 - You can compare datasets through raw and processed integration.
 
+![BRIDGE end-to-end workflow](assets/bridge_workflow.svg)
+
+*Workflow figure. BRIDGE starts from a compatible SQLite database, loads selected tables and datapoints, creates individual exploration workspaces, supports raw or processed integration, and ends with exportable plots and tables.*
+
+<details>
+<summary>Help: how to read this workflow</summary>
+<p>Think of BRIDGE as a guided path rather than a single plot. The database is the source of truth, Loading Data chooses what enters the session, Individual Exploration checks each dataset on its own, and Integration compares datasets once they are loaded and comparable.</p>
+</details>
+
 Two main workflows:
 
 - Individual Exploration:
@@ -23,6 +32,8 @@ Typical session:
 3. Explore each dataset individually.
 4. Run raw or processed integration.
 5. Export tables/plots for reporting.
+
+If you want the exact processing and integration logic, read [Methodology](methodology.md).
 
 Scope note:
 

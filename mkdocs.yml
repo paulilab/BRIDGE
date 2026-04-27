@@ -5,10 +5,12 @@ theme:
 
 nav:
   - Home: index.md
+  - Quick Start: quick-start.md
   - Introduction: intro.md
+  - Methodology: methodology.md
   - Installation: installation.md
-  - Database Generation: database-generation.md
   - Data Requirements: data-requirements.md
+  - Database Generation: database-generation.md
   - Examples: examples.md
   - Loading Data: loading-data.md
   - Individual Exploration: individual-exploration.md

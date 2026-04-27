@@ -7,6 +7,15 @@ BRIDGE uses a SQLite database as backend. This database stores:
 - metadata tables
 - optional cached processed objects
 
+![BRIDGE SQLite backend structure](assets/sqlite_backend_structure.svg)
+
+*Database figure. The database-generation scripts upload raw data and annotation tables into SQLite, then register metadata tables that BRIDGE uses to discover available datasets, annotation versions, and optional cached processed objects.*
+
+<details>
+<summary>Help: how to read this database diagram</summary>
+<p>The raw and annotation tables store the biological data. The metadata tables tell BRIDGE which tables exist, what species or datatype they belong to, and how they should be loaded. If a table exists in SQLite but is missing from the metadata, it may not appear in the app.</p>
+</details>
+
 Create a new database file:
 
 ```bash

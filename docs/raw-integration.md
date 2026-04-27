@@ -30,4 +30,13 @@ Practical tips:
 - Alignment is positional, so order matters.
 - In phosphoproteomics, one gene can map to multiple peptide lines.
 
-`<figure 7: Raw Integration preview and integrated trend output, emphasizing column matching across datasets before integration.>`
+For exact methodological scope, see [Methodology](methodology.md).
+
+![Raw Integration trend output across selected datasets](assets/raw_integration.png)
+
+*Figure 7. Raw Integration output comparing selected features across two loaded datasets. Each panel shows one source dataset, with points representing replicate-level values and connected markers summarizing stage-wise trends for the selected genes or identifiers.*
+
+<details>
+<summary>Help: how to read this plot</summary>
+<p>Use this view to compare whether a feature follows a similar or different trend across omics layers before applying differential-expression filtering. Because raw integration aligns selected datapoint columns by position, make sure the stages or conditions are selected in the same biological order for every dataset before interpreting the trends.</p>
+</details>

@@ -2,6 +2,10 @@
 
 BRIDGE can be run with Docker or locally.
 
+For the shortest path to a first plot, use this page together with [Quick Start](quick-start.md).
+
+Before starting, you need a BRIDGE-compatible SQLite database. If you only have CSV/TSV files, check [Data Requirements](data-requirements.md) before creating the database with [Database Generation](database-generation.md).
+
 ## Fastest start (Docker)
 
 Run:
@@ -49,8 +53,13 @@ Rscript app.R user_database.db
 
 If you do not have a database yet, go to [Database Generation](database-generation.md).
 
-## First-session checklist
+## First-run success checklist
 
-1. Load one dataset in the Data Selection panel.
-2. Open `Individual Exploration` and run one plot (for example Volcano Plot).
-3. Load a second dataset and test `Raw Integration`.
+1. App opens at `http://localhost:3838`.
+2. Species selector shows the expected species.
+3. A data table appears after species selection.
+4. A matching annotation table appears.
+5. Dataset appears after clicking `Load Data`.
+6. `PCA` or `Raw Heatmap` produces a plot.
+
+After this works, load a second dataset and test `Raw Integration` if your goal is cross-omics comparison.

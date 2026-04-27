@@ -27,11 +27,20 @@ Loaded datasets:
 Common issues:
 
 - No tables appear:
-  check table naming and species prefix.
+  check table naming, species prefix, and `table_metadata`.
 - No annotation appears:
   check `annotation_metadata`.
 - Load succeeds but plots are empty:
   validate identifiers and selected datapoints.
+
+First successful load checklist:
+
+- The selected species matches the table-name prefix.
+- A data table is visible in the table selector.
+- Datapoint columns are selected in the intended biological order.
+- A matching annotation table is selected.
+- The loaded dataset appears in the session after clicking `Load Data`.
+- `PCA` or `Raw Heatmap` can compute a first plot.
 
 Practical tip:
 

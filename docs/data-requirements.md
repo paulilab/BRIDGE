@@ -14,6 +14,15 @@ General rules:
 6. Phosphoproteomics requires `pepG`.
 7. Processed objects should match the same raw-column selection used in BRIDGE.
 
+![BRIDGE data compatibility checklist](assets/data_requirements_checklist.svg)
+
+*Requirements figure. A BRIDGE-compatible dataset needs a supported file format, required identifier columns, correctly named datapoint columns, consistent table naming, matching annotation, and compatible processed cache objects if those are provided.*
+
+<details>
+<summary>Help: how to use this checklist</summary>
+<p>Before troubleshooting the app, check the dataset against this diagram from left to right. Most loading and empty-plot issues come from missing identifiers, table names that do not match the selected species, annotation metadata problems, or datapoint columns that do not follow the replicate suffix pattern.</p>
+</details>
+
 Datapoint naming example:
 
 ```text

@@ -32,4 +32,11 @@ Interpretation tips:
 - Check that highlighted candidates behave as expected under chosen contrast.
 - Use same thresholds when comparing across runs.
 
-`<figure 3: Volcano Plot after compute, including contrast selection, p-value/LFC thresholds, and one highlighted feature label.>`
+![Volcano Plot after compute](assets/volcano_plot.png)
+
+*Figure 3. Volcano Plot after compute. Each point is a feature in the selected contrast; the x-axis shows log2 fold change and the y-axis shows statistical evidence as `-log10(p-value)`. Dashed lines mark the selected LFC and p-value cutoffs.*
+
+<details>
+<summary>Help: how to read this plot</summary>
+<p>Features farther left or right have larger effect sizes, and features higher on the plot have stronger statistical evidence. Points in the upper-left and upper-right regions are usually the most interesting candidates. Gray points do not pass the selected thresholds, while colored points pass the significance and direction criteria.</p>
+</details>

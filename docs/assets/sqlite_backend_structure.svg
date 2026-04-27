@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600" role="img" aria-labelledby="title desc">
+  <title id="title">BRIDGE SQLite backend structure</title>
+  <desc id="desc">A diagram showing how data files and annotation files are loaded into SQLite tables, metadata, and optional processed cache, then consumed by BRIDGE.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#2f4b4f"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="600" rx="30" fill="#f7faf7"/>
+  <text x="60" y="58" font-family="Atkinson Hyperlegible, Verdana, sans-serif" font-size="30" font-weight="700" fill="#183135">SQLite backend structure</text>
+  <text x="60" y="88" font-family="Atkinson Hyperlegible, Verdana, sans-serif" font-size="16" fill="#52696d">The database stores both user data and the metadata BRIDGE uses to discover what can be loaded.</text>
+
+  <g font-family="Atkinson Hyperlegible, Verdana, sans-serif">
+    <g>
+      <rect x="65" y="145" width="220" height="96" rx="18" fill="#ffffff" stroke="#b9d2e4" stroke-width="2"/>
+      <text x="175" y="181" text-anchor="middle" font-size="18" font-weight="700" fill="#1f3a3d">Data CSV/TSV</text>
+      <text x="175" y="208" text-anchor="middle" font-size="14" fill="#52696d">omics values and IDs</text>
+    </g>
+    <g>
+      <rect x="65" y="355" width="220" height="96" rx="18" fill="#ffffff" stroke="#d5c294" stroke-width="2"/>
+      <text x="175" y="391" text-anchor="middle" font-size="18" font-weight="700" fill="#1f3a3d">Annotation CSV/TSV</text>
+      <text x="175" y="418" text-anchor="middle" font-size="14" fill="#52696d">gene coordinates and context</text>
+    </g>
+
+    <line x1="295" y1="193" x2="370" y2="193" stroke="#2f4b4f" stroke-width="3" marker-end="url(#arrow)"/>
+    <line x1="295" y1="403" x2="370" y2="403" stroke="#2f4b4f" stroke-width="3" marker-end="url(#arrow)"/>
+
+    <g>
+      <rect x="380" y="125" width="230" height="135" rx="20" fill="#ffffff" stroke="#77a99d" stroke-width="2"/>
+      <text x="495" y="160" text-anchor="middle" font-size="18" font-weight="700" fill="#1f3a3d">db_adding.py</text>
+      <text x="495" y="190" text-anchor="middle" font-size="14" fill="#52696d">select ID columns</text>
+      <text x="495" y="213" text-anchor="middle" font-size="14" fill="#52696d">select datapoint columns</text>
+      <text x="495" y="236" text-anchor="middle" font-size="14" fill="#52696d">optional RDS cache</text>
+    </g>
+    <g>
+      <rect x="380" y="350" width="230" height="105" rx="20" fill="#ffffff" stroke="#bd8f2f" stroke-width="2"/>
+      <text x="495" y="386" text-anchor="middle" font-size="15" font-weight="700" fill="#1f3a3d">db_adding_annotation.py</text>
+      <text x="495" y="416" text-anchor="middle" font-size="14" fill="#52696d">upload annotation</text>
+      <text x="495" y="439" text-anchor="middle" font-size="14" fill="#52696d">register genome version</text>
+    </g>
+
+    <line x1="620" y1="193" x2="695" y2="193" stroke="#2f4b4f" stroke-width="3" marker-end="url(#arrow)"/>
+    <line x1="620" y1="403" x2="695" y2="403" stroke="#2f4b4f" stroke-width="3" marker-end="url(#arrow)"/>
+
+    <g>
+      <rect x="705" y="110" width="260" height="365" rx="28" fill="#ffffff" stroke="#b4cbc6" stroke-width="2"/>
+      <text x="835" y="148" text-anchor="middle" font-size="21" font-weight="700" fill="#1f3a3d">user_database.db</text>
+      <rect x="735" y="175" width="200" height="48" rx="12" fill="#e7f2fb" stroke="#4f7fa3"/>
+      <text x="835" y="205" text-anchor="middle" font-size="15" font-weight="700" fill="#1f3a3d">raw data tables</text>
+      <rect x="735" y="238" width="200" height="48" rx="12" fill="#eef7f4" stroke="#4f7e77"/>
+      <text x="835" y="268" text-anchor="middle" font-size="15" font-weight="700" fill="#1f3a3d">table_metadata</text>
+      <rect x="735" y="301" width="200" height="48" rx="12" fill="#fff3d7" stroke="#bd8f2f"/>
+      <text x="835" y="331" text-anchor="middle" font-size="15" font-weight="700" fill="#1f3a3d">annotation tables</text>
+      <rect x="735" y="364" width="200" height="48" rx="12" fill="#fae8e0" stroke="#a85e43"/>
+      <text x="835" y="394" text-anchor="middle" font-size="15" font-weight="700" fill="#1f3a3d">annotation_metadata</text>
+      <rect x="735" y="427" width="200" height="30" rx="10" fill="#edf5e8" stroke="#6b8f45"/>
+      <text x="835" y="448" text-anchor="middle" font-size="13" fill="#1f3a3d">optional processed cache</text>
+    </g>
+
+    <line x1="975" y1="292" x2="1050" y2="292" stroke="#2f4b4f" stroke-width="3" marker-end="url(#arrow)"/>
+
+    <g>
+      <rect x="1060" y="218" width="105" height="148" rx="20" fill="#ffffff" stroke="#b8c9a5" stroke-width="2"/>
+      <text x="1112.5" y="258" text-anchor="middle" font-size="19" font-weight="700" fill="#1f3a3d">BRIDGE</text>
+      <text x="1112.5" y="292" text-anchor="middle" font-size="13" fill="#52696d">discovers</text>
+      <text x="1112.5" y="314" text-anchor="middle" font-size="13" fill="#52696d">loads</text>
+      <text x="1112.5" y="336" text-anchor="middle" font-size="13" fill="#52696d">analyzes</text>
+    </g>
+  </g>
+</svg>

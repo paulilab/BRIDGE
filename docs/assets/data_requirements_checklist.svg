@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">BRIDGE data requirements checklist</title>
+  <desc id="desc">A checklist of required files, columns, names, annotation fields, and processed object alignment.</desc>
+  <defs>
+  </defs>
+  <rect width="1200" height="620" rx="30" fill="#f7fbf9"/>
+  <text x="60" y="58" font-family="Atkinson Hyperlegible, Verdana, sans-serif" font-size="30" font-weight="700" fill="#183135">Before loading data: compatibility checklist</text>
+  <text x="60" y="88" font-family="Atkinson Hyperlegible, Verdana, sans-serif" font-size="16" fill="#52696d">Most loading problems come from naming, missing identifiers, or mismatched annotation.</text>
+
+  <g font-family="Atkinson Hyperlegible, Verdana, sans-serif">
+    <rect x="65" y="125" width="320" height="165" rx="22" fill="#ffffff" stroke="#b4cbc6" stroke-width="2"/>
+    <circle cx="96" cy="159" r="16" fill="#d7ebe6" stroke="#4f7e77" stroke-width="2"/>
+    <path d="M88 159 l6 7 l14 -17" fill="none" stroke="#2f6f65" stroke-width="3" stroke-linecap="round"/>
+    <text x="125" y="165" font-size="19" font-weight="700" fill="#1f3a3d">File format</text>
+    <text x="95" y="205" font-size="15" fill="#52696d">Use CSV or TSV input files.</text>
+    <text x="95" y="232" font-size="15" fill="#52696d">Avoid hidden spreadsheet formatting.</text>
+    <text x="95" y="259" font-size="15" fill="#52696d">Upload raw data and</text>
+    <text x="95" y="282" font-size="15" fill="#52696d">annotation separately.</text>
+
+    <rect x="440" y="125" width="320" height="165" rx="22" fill="#ffffff" stroke="#b9d2e4" stroke-width="2"/>
+    <circle cx="471" cy="159" r="16" fill="#e7f2fb" stroke="#4f7fa3" stroke-width="2"/>
+    <path d="M463 159 l6 7 l14 -17" fill="none" stroke="#356f96" stroke-width="3" stroke-linecap="round"/>
+    <text x="500" y="165" font-size="19" font-weight="700" fill="#1f3a3d">Required identifiers</text>
+    <text x="470" y="205" font-size="15" fill="#52696d">Gene_Name</text>
+    <text x="470" y="232" font-size="15" fill="#52696d">Gene_ID</text>
+    <text x="470" y="259" font-size="15" fill="#52696d">Protein_ID</text>
+    <text x="470" y="282" font-size="15" fill="#52696d">pepG for phosphoproteomics</text>
+
+    <rect x="815" y="125" width="320" height="165" rx="22" fill="#ffffff" stroke="#d5c294" stroke-width="2"/>
+    <circle cx="846" cy="159" r="16" fill="#fff3d7" stroke="#bd8f2f" stroke-width="2"/>
+    <path d="M838 159 l6 7 l14 -17" fill="none" stroke="#a06d14" stroke-width="3" stroke-linecap="round"/>
+    <text x="875" y="165" font-size="19" font-weight="700" fill="#1f3a3d">Datapoint columns</text>
+    <text x="845" y="205" font-size="15" fill="#52696d">End with underscore replicate suffix.</text>
+    <text x="845" y="232" font-size="15" fill="#52696d">Example: X6.hpf_1</text>
+    <text x="845" y="259" font-size="15" fill="#52696d">Use dots or dashes</text>
+    <text x="845" y="282" font-size="15" fill="#52696d">inside stage names.</text>
+
+    <rect x="65" y="345" width="320" height="190" rx="22" fill="#ffffff" stroke="#d5b6aa" stroke-width="2"/>
+    <circle cx="96" cy="379" r="16" fill="#fae8e0" stroke="#a85e43" stroke-width="2"/>
+    <path d="M88 379 l6 7 l14 -17" fill="none" stroke="#92472f" stroke-width="3" stroke-linecap="round"/>
+    <text x="125" y="385" font-size="19" font-weight="700" fill="#1f3a3d">Table naming</text>
+    <text x="95" y="419" font-size="15" fill="#52696d">species_datatype_optionalinfo_id</text>
+    <text x="95" y="446" font-size="15" fill="#52696d">Example:</text>
+    <text x="95" y="473" font-size="14" fill="#52696d">zebrafish_proteomics_test_1</text>
+    <text x="95" y="497" font-size="13" fill="#52696d">Species prefix must match</text>
+    <text x="95" y="516" font-size="13" fill="#52696d">annotation.</text>
+
+    <rect x="440" y="345" width="320" height="190" rx="22" fill="#ffffff" stroke="#c5c0d8" stroke-width="2"/>
+    <circle cx="471" cy="379" r="16" fill="#efedf8" stroke="#6e648c" stroke-width="2"/>
+    <path d="M463 379 l6 7 l14 -17" fill="none" stroke="#5b5278" stroke-width="3" stroke-linecap="round"/>
+    <text x="500" y="385" font-size="19" font-weight="700" fill="#1f3a3d">Annotation table</text>
+    <text x="470" y="425" font-size="15" fill="#52696d">Gene_ID, Gene_Name, Chromosome</text>
+    <text x="470" y="452" font-size="15" fill="#52696d">Gene_Start, Gene_End, Gene_Type</text>
+    <text x="470" y="479" font-size="15" fill="#52696d">Strand</text>
+
+    <rect x="815" y="345" width="320" height="190" rx="22" fill="#ffffff" stroke="#b8c9a5" stroke-width="2"/>
+    <circle cx="846" cy="379" r="16" fill="#edf5e8" stroke="#6b8f45" stroke-width="2"/>
+    <path d="M838 379 l6 7 l14 -17" fill="none" stroke="#557b32" stroke-width="3" stroke-linecap="round"/>
+    <text x="875" y="385" font-size="19" font-weight="700" fill="#1f3a3d">Processed cache</text>
+    <text x="845" y="425" font-size="15" fill="#52696d">Processed objects are optional.</text>
+    <text x="845" y="455" font-size="15" fill="#52696d">Must match selected raw columns.</text>
+    <text x="845" y="485" font-size="15" fill="#52696d">Mismatches can produce</text>
+    <text x="845" y="515" font-size="15" fill="#52696d">empty plots.</text>
+  </g>
+</svg>
