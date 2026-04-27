@@ -200,7 +200,7 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
                     type = "scattergl",
                     mode = "markers",
                     color = ~dir,
-                    colors = c(down = "royalblue", ns = "grey80", up = "red"),
+                    colors = c(down = BRIDGE_COLORS$down, ns = BRIDGE_COLORS$ns, up = BRIDGE_COLORS$up),
                     text = ~name,
                     hoverinfo = "text",
                     marker = list(size = 6, opacity = 0.75)
@@ -265,18 +265,18 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
             # Use lab = df$name for all, and selectLab = highlights to force labels
 
             keyvals <- ifelse(
-                tolower(df$name) %in% tolower(highlight), "black",
-                ifelse(df$log2FC < -1 * lfc_cut, "royalblue",
-                    ifelse(df$log2FC > lfc_cut, "red",
-                        "grey80"
+                tolower(df$name) %in% tolower(highlight), BRIDGE_COLORS$highlight,
+                ifelse(df$log2FC < -1 * lfc_cut, BRIDGE_COLORS$down,
+                    ifelse(df$log2FC > lfc_cut, BRIDGE_COLORS$up,
+                        BRIDGE_COLORS$ns
                     )
                 )
             )
-            keyvals[is.na(keyvals)] <- "grey80"
-            names(keyvals)[keyvals == "black"] <- "highlight"
-            names(keyvals)[keyvals == "grey80"] <- "mid"
-            names(keyvals)[keyvals == "royalblue"] <- "low"
-            names(keyvals)[keyvals == "red"] <- "high"
+            keyvals[is.na(keyvals)] <- BRIDGE_COLORS$ns
+            names(keyvals)[keyvals == BRIDGE_COLORS$highlight] <- "highlight"
+            names(keyvals)[keyvals == BRIDGE_COLORS$ns]        <- "mid"
+            names(keyvals)[keyvals == BRIDGE_COLORS$down]      <- "low"
+            names(keyvals)[keyvals == BRIDGE_COLORS$up]        <- "high"
 
             # message(length(keyvals), " points; highlights: ", length(res$highlight), " (", paste(res$highlight, collapse = ", "), ")")
 

@@ -282,8 +282,8 @@ processed_integration <- function(input, output, session, rv) {
                     }
 
                     p <- ggplot(df_plot, aes(x, y, text = Gene_Name)) +
-                        geom_point(alpha = .7, color = "#2b8cbe") +
-                        geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
+                        geom_point(alpha = .7, color = BRIDGE_COLORS$accent) +
+                        geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "#AAAAAA") +
                         coord_equal(xlim = axis_rng, ylim = axis_rng, expand = TRUE) +
                         labs(title = paste(lfc_cols[i], "vs", lfc_cols[j]), x = paste(lfc_cols[i]), y = paste(lfc_cols[j])) +
                         theme_minimal()

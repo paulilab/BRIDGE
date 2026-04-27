@@ -76,6 +76,7 @@ int_datapoints_server <- function(input, output, session, data_combined, referen
             geom_point(data = long, aes(x = StageGroup, y = Expression, color = unique_id), size = 3, alpha = 0.5) +
             geom_line(data = avg, aes(x = StageGroup, y = MeanExpression, color = unique_id, group = unique_id), linewidth = 1.2) +
             geom_point(data = avg, aes(x = StageGroup, y = MeanExpression, color = unique_id), size = 4, shape = 17) +
+            scale_color_manual(values = bridge_discrete_pal(length(unique(long$unique_id)))) +
             facet_wrap(~source, ncol = 2, scales = "free_y") +
             labs(x = "Stage", y = "Expression", color = "Gene") +
             theme_minimal() +

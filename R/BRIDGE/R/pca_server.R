@@ -136,8 +136,10 @@ pcaServer <- function(id, rv, cache, tbl_name) {
             x_lab <- sprintf("%s (%.1f%%)", x_pc, 100 * var_expl[x_idx])
             y_lab <- sprintf("%s (%.1f%%)", y_pc, 100 * var_expl[y_idx])
 
+            n_groups <- length(unique(score_df$group))
             ggplot2::ggplot(score_df, ggplot2::aes(x = .data[[x_pc]], y = .data[[y_pc]], color = .data$group, text = .data$sample)) +
                 ggplot2::geom_point(size = 3, alpha = 0.9) +
+                ggplot2::scale_color_manual(values = bridge_discrete_pal(n_groups)) +
                 ggplot2::labs(x = x_lab, y = y_lab, color = "Group") +
                 ggplot2::theme_minimal()
         })

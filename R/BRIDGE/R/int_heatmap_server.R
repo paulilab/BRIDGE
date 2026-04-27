@@ -162,7 +162,7 @@ int_heatmap_server <- function(input, output, session, rv) {
                 grid::grid.lines(
                   x = seq_len(ncol(line_profiles_norm)) / ncol(line_profiles_norm),
                   y = line_profiles_norm[as.integer(nm2), ],
-                  gp = ggfun::gpar(col = "#2b8cbe", lwd = 1)
+                  gp = ggfun::gpar(col = BRIDGE_COLORS$accent, lwd = 1)
                 )
               },
               side = "right",
@@ -174,6 +174,7 @@ int_heatmap_server <- function(input, output, session, rv) {
           ComplexHeatmap::Heatmap(
             mat_ordered,
             name = nm,
+            col = bridge_heatmap_col(max(abs(mat_ordered), na.rm = TRUE)),
             cluster_rows = FALSE,
             cluster_columns = FALSE,
             show_row_dend = FALSE,
@@ -268,9 +269,89 @@ int_heatmap_server <- function(input, output, session, rv) {
     }
   })
 
+  build_native_lfc_scatter <- function(df_plot, comparison_name = NULL) {
+    shiny::req(is.data.frame(df_plot), all(c("x", "y") %in% colnames(df_plot)))
+
+    plot_df <- as.data.frame(df_plot)
+    plot_df <- plot_df[is.finite(plot_df$x) & is.finite(plot_df$y), , drop = FALSE]
+    shiny::req(nrow(plot_df) > 0)
+
+    hover_text <- if ("Gene_Name" %in% colnames(plot_df)) {
+      as.character(plot_df$Gene_Name)
+    } else {
+      sprintf("x: %.3f<br>y: %.3f", plot_df$x, plot_df$y)
+    }
+
+    axis_rng <- range(c(plot_df$x, plot_df$y), na.rm = TRUE)
+    if (!all(is.finite(axis_rng))) axis_rng <- c(-1, 1)
+    if (diff(axis_rng) == 0) axis_rng <- axis_rng + c(-0.5, 0.5)
+
+    axis_labels <- c("LFC X", "LFC Y")
+    if (!is.null(comparison_name) && grepl("_vs_", comparison_name, fixed = TRUE)) {
+      parts <- strsplit(comparison_name, "_vs_", fixed = TRUE)[[1]]
+      if (length(parts) == 2) axis_labels <- parts
+    }
+
+    p_native <- plotly::plot_ly(
+      data = plot_df,
+      x = ~x,
+      y = ~y,
+      type = "scattergl",
+      mode = "markers",
+      text = hover_text,
+      hoverinfo = "text",
+      marker = list(
+        color = BRIDGE_COLORS$accent,
+        size = 7,
+        opacity = 0.7
+      )
+    )
+
+    p_native <- plotly::add_segments(
+      p_native,
+      x = axis_rng[1], xend = axis_rng[2],
+      y = axis_rng[1], yend = axis_rng[2],
+      inherit = FALSE,
+      line = list(color = "#AAAAAA", dash = "dash"),
+      hoverinfo = "skip",
+      showlegend = FALSE
+    )
+
+    p_native |>
+      plotly::layout(
+        title = comparison_name,
+        xaxis = list(title = axis_labels[1], range = axis_rng),
+        yaxis = list(title = axis_labels[2], range = axis_rng, scaleanchor = "x", scaleratio = 1)
+      )
+  }
+
   output$lfc_scatter_plot <- plotly::renderPlotly({
     shiny::req(rv$scatter_plots, input[["scatter_comparisons"]])
-    plotly::ggplotly(rv$scatter_plots[[input[["scatter_comparisons"]]]], tooltip = "text")
+
+    comparison <- input[["scatter_comparisons"]]
+    p_obj <- rv$scatter_plots[[comparison]]
+    shiny::req(!is.null(p_obj))
+
+    tryCatch({
+      plotly::ggplotly(p_obj, tooltip = "text", dynamicTicks = FALSE)
+    }, error = function(e) {
+      df_plot <- p_obj$data
+      if (!is.data.frame(df_plot) || !all(c("x", "y") %in% colnames(df_plot))) {
+        shiny::showNotification(
+          paste("Failed to render scatter:", conditionMessage(e)),
+          type = "error",
+          duration = NULL
+        )
+        return(plotly::plot_ly())
+      }
+
+      shiny::showNotification(
+        "Using native scatter renderer due to ggplotly conversion error.",
+        type = "message",
+        duration = 4
+      )
+      build_native_lfc_scatter(df_plot, comparison_name = comparison)
+    })
   })
 
   output$lfc_scatter_download_ui <- shiny::renderUI({

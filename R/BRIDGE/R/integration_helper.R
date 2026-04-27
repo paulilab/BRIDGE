@@ -35,11 +35,8 @@ plot_custom_tc_cluster <- function(ht_mat, exp_design, cluster_vec,
     names(membership) <- rownames(ht_mat)
 
     # Color scales
-    col_fun_line <- circlize::colorRamp2(c(0.01, 0.5, 0.9), c("#54c556", "#d3ca48", "#cd3634"))
-    col_fun_heatmap <- circlize::colorRamp2(
-        seq(-col_limit, col_limit, length.out = 11),
-        rev(RColorBrewer::brewer.pal(11, color))
-    )
+    col_fun_line    <- bridge_trend_col()
+    col_fun_heatmap <- bridge_heatmap_col(col_limit)
 
     ngroup <- length(group_order)
 

@@ -131,6 +131,9 @@ datapointsServer <- function(id, rv, tbl_name) {
                         ),
                         size = 4, shape = 17
                     ) +
+                    ggplot2::scale_color_manual(
+                        values = bridge_discrete_pal(length(unique(dl$Gene_pepG)))
+                    ) +
                     ggplot2::labs(
                         x = "Stage",
                         y = "log Expression",
@@ -177,6 +180,9 @@ datapointsServer <- function(id, rv, tbl_name) {
                             color = as.factor(stringr::str_to_title(Gene_Name))
                         ),
                         size = 4, shape = 17
+                    ) +
+                    ggplot2::scale_color_manual(
+                        values = bridge_discrete_pal(length(unique(dl$Gene_Name)))
                     ) +
                     ggplot2::labs(
                         x = "Stage",

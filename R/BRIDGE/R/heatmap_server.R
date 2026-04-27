@@ -4,7 +4,13 @@ heatmap_server <- function(id, rv) {
         shiny::observe({
             lapply(rv$table_names, function(tbl_name) {
                 output[[paste0("raw_ht_", tbl_name)]] <- shiny::renderPlot({
-                    ComplexHeatmap::Heatmap(rv$ht_matrix[[tbl_name]], show_row_dend = FALSE, show_row_names = FALSE)
+                    col_lim <- max(abs(rv$ht_matrix[[tbl_name]]), na.rm = TRUE)
+                    if (!is.finite(col_lim) || col_lim == 0) col_lim <- 2
+                    ComplexHeatmap::Heatmap(rv$ht_matrix[[tbl_name]],
+                        col = bridge_heatmap_col(col_lim),
+                        show_row_dend = FALSE,
+                        show_row_names = FALSE
+                    )
                 })
             })
         })
@@ -80,7 +86,10 @@ RawHeatmapServer <- function(id, rv, tbl_name) {
             plot_fun = function() {
                 res <- task$result()
                 req(res)
+                col_lim <- max(abs(res$clean_matrix), na.rm = TRUE)
+                if (!is.finite(col_lim) || col_lim == 0) col_lim <- 2
                 ComplexHeatmap::Heatmap(res$clean_matrix,
+                    col = bridge_heatmap_col(col_lim),
                     show_row_dend = FALSE,
                     show_row_names = FALSE
                 )
@@ -480,9 +489,14 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
             y_lim <- range(local_mat, na.rm = TRUE)
             if (!all(is.finite(y_lim)) || diff(y_lim) == 0) y_lim <- c(-1, 1)
 
+            col_lim <- max(abs(local_mat), na.rm = TRUE)
+            if (!is.finite(col_lim) || col_lim == 0) col_lim <- 2
+            ht_col <- bridge_heatmap_col(col_lim)
+
             if (!is.null(k)) {
                 ht <- ComplexHeatmap::Heatmap(
                     local_mat,
+                    col            = ht_col,
                     row_km         = k,
                     show_row_names = FALSE,
                     cluster_columns = FALSE
@@ -497,6 +511,7 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
             } else {
                 ht <- ComplexHeatmap::Heatmap(
                     local_mat,
+                    col            = ht_col,
                     cluster_rows   = FALSE,
                     show_row_names = FALSE,
                     cluster_columns = FALSE
