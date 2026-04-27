@@ -192,7 +192,7 @@ server_function <- function(input, output, session, db_path) {
                 "current_dep_heatmap_key", "current_dep_volcano_key"
             )
             for (slot in per_table_slots) {
-                if (!is.null(rv[[slot]]) && !is.null(rv[[slot]][[table_id]])) {
+                if (is.list(rv[[slot]]) && !is.null(rv[[slot]][[table_id]])) {
                     rv[[slot]][[table_id]] <- NULL
                 }
             }

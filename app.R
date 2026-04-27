@@ -1,14 +1,7 @@
-bridge_pkg_path <- file.path(getwd(), "R", "BRIDGE")
-bridge_dev_sync <- Sys.getenv("BRIDGE_DEV_SYNC", "1") == "1"
-
-if (dir.exists(bridge_pkg_path) && bridge_dev_sync) {
-    library(devtools)
-    devtools::document(bridge_pkg_path)
-    devtools::install(bridge_pkg_path, keep_source = TRUE, upgrade = "never")
-}
-
 if (!require(BRIDGE)) {
-    stop("BRIDGE package is not available. Install from R/BRIDGE or run with BRIDGE_DEV_SYNC=1 from repository root.")
+    library(devtools)
+    devtools::document("R/BRIDGE")
+    devtools::install("R/BRIDGE", keep_source = T, upgrade = "never")    
 }
 #print("Loading BRIDGE package")
 library(BRIDGE)
