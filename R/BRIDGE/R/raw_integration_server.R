@@ -11,10 +11,12 @@ raw_integration <- function(input, output, session, rv, combined_data) {
         # Validate selection
         if (any(sapply(selected_lists, is.null))) {
             combined_data(data.frame(Message = "Select columns from each table before integrating."))
+            rv$integration_reference_cols <- NULL
             return()
         }
         if (length(unique(sapply(selected_lists, length))) > 1) {
             combined_data(data.frame(Message = "Error: Column numbers differ. Matching not possible."))
+            rv$integration_reference_cols <- NULL
             return()
         }
 
@@ -57,11 +59,9 @@ raw_integration <- function(input, output, session, rv, combined_data) {
         # Combine all
         combined_df <- dplyr::bind_rows(tables_to_join) %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric))
         combined_data(combined_df)
+        rv$integration_reference_cols <- reference_data_names
 
         # Update search box
         updateSelectizeInput(session, "search_gene_integration", choices = sort(unique(gsub("_.*", "", combined_df$unique_id))), server = TRUE)
-
-        # Render multi-datapoints plot
-        int_datapoints_server(input, output, session, combined_df, reference_data_names)
     })
 }

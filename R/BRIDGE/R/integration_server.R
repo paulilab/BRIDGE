@@ -278,6 +278,16 @@ integration_ui <- function(input, output, session, rv) {
 
     raw_integration(input, output, session, rv, combined_data)
 
+    ### RAW INTEGRATION DATAPOINTS MODULE (wire once; react to combined_data updates)
+
+    int_datapoints_server(
+        input,
+        output,
+        session,
+        data_combined = reactive(combined_data()),
+        reference_data_names = reactive(rv$integration_reference_cols)
+    )
+
     ### PROCESSED INTEGRATION PIPELINE
 
     processed_integration(input, output, session, rv)

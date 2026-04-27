@@ -1,9 +1,23 @@
 #' @export
 int_datapoints_server <- function(input, output, session, data_combined, reference_data_names) {
+    get_data_combined <- function() {
+        if (is.function(data_combined)) data_combined() else data_combined
+    }
+
+    get_reference_cols <- function() {
+        if (is.function(reference_data_names)) reference_data_names() else reference_data_names
+    }
+
     processed_data <- reactive({
         shiny::req(input$scale_integration)
         scale_input <- input$scale_integration
-        raw_data <- data_combined
+        raw_data <- get_data_combined()
+        shiny::req(!is.null(raw_data), is.data.frame(raw_data), nrow(raw_data) > 0)
+        shiny::validate(
+            shiny::need(all(c("Gene_Name", "source", "unique_id") %in% colnames(raw_data)),
+                "Integrate data first to enable the datapoints plot."
+            )
+        )
         if (scale_input == "Continous") {
             raw_data
         } else if (scale_input == "Log-scale") {
@@ -22,9 +36,16 @@ int_datapoints_server <- function(input, output, session, data_combined, referen
 
     data_long <- reactive({
         data <- selected_data()
+        ref_cols <- get_reference_cols()
+        shiny::req(!is.null(ref_cols), length(ref_cols) > 0)
+        shiny::validate(
+            shiny::need(all(ref_cols %in% colnames(data)),
+                "Selected integration columns are not available in the current integrated table."
+            )
+        )
 
         # Clean stage names
-        unique_datapoints <- reference_data_names %>%
+        unique_datapoints <- ref_cols %>%
             gsub("_[0-9]+$", "", .) %>%
             gsub("[_.-]+$", "", .) %>%
             unique() %>%
@@ -32,7 +53,7 @@ int_datapoints_server <- function(input, output, session, data_combined, referen
 
         # Reshape
         data_long <- data %>%
-            pivot_longer(cols = all_of(reference_data_names), names_to = "Stage", values_to = "Expression") %>%
+            pivot_longer(cols = all_of(ref_cols), names_to = "Stage", values_to = "Expression") %>%
             mutate(
                 StageGroup = gsub("[0-9]+$", "", Stage) %>% gsub("[_.-]+$", "", .),
                 #StageGroup = factor(StageGroup, levels = mixedrank(unique(Stage)))
