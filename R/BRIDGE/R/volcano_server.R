@@ -153,6 +153,7 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
                 last_params(params)
                 key <- paste(
                     tbl_name, params$columns_key,
+                    paste0("contrast=", params$contrast),
                     sprintf("pcut=%.4f", params$p_cut),
                     sprintf("lfc=%.3f", params$lfc_cut),
                     "dep_volcano_task",
