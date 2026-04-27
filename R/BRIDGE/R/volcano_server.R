@@ -209,6 +209,13 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
             }
             # message("Highlighting: ", paste(highlight, collapse = ", "), "\nDFnames: ", paste(head(df$name), collapse = ", "))
             # pre-compute helpers
+            # Guard against zero/negative adjusted p-values (can break interactive conversion)
+            min_positive_p <- suppressWarnings(min(df$pval[df$pval > 0], na.rm = TRUE))
+            if (!is.finite(min_positive_p)) {
+                min_positive_p <- 1e-300
+            }
+            df$pval[!is.finite(df$pval) | df$pval <= 0] <- min_positive_p * 0.1
+
             df$neglog10p <- -log10(df$pval)
             is_sig <- is.finite(df$log2FC) & is.finite(df$neglog10p) &
                 df$pval <= p_cut & abs(df$log2FC) >= lfc_cut
@@ -227,7 +234,7 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
                     df <- as.data.frame(df[keep, , drop = FALSE])
                 }
             }
-            df <- df[is.finite(df$log2FC) & is.finite(df$pval), , drop = FALSE]
+            df <- df[is.finite(df$log2FC) & is.finite(df$pval) & is.finite(df$neglog10p), , drop = FALSE]
             if (!nrow(df)) {
                 volcano_ggplot_obj(NULL)
                 showNotification("No finite points to plot for this contrast.", type = "warning")
@@ -273,7 +280,34 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
 
             # message("Rendering volcano plot with ", nrow(df), " points.", str(p))
 
-            plotly::ggplotly(p + aes(key = name, x = log2FC, y = -log10(pval), tooltip = "text", dynamicTicks = FALSE)) #|>
+            tryCatch(
+                {
+                    plotly::ggplotly(p, tooltip = "text", dynamicTicks = FALSE)
+                },
+                error = function(e) {
+                    showNotification(
+                        paste("Interactive volcano conversion failed. Using fallback renderer.", conditionMessage(e)),
+                        type = "warning"
+                    )
+
+                    plotly::plot_ly(
+                        data = df,
+                        x = ~log2FC,
+                        y = ~neglog10p,
+                        type = "scattergl",
+                        mode = "markers",
+                        color = ~dir,
+                        colors = c(down = "royalblue", ns = "grey80", up = "red"),
+                        text = ~name,
+                        hoverinfo = "text",
+                        marker = list(size = 6, opacity = 0.75)
+                    ) |>
+                        plotly::layout(
+                            xaxis = list(title = "Log2 fold change"),
+                            yaxis = list(title = "-Log10 Padj")
+                        )
+                }
+            )
         })
 
         output$volcano_sig_table <- DT::renderDT({
