@@ -138,85 +138,111 @@ server_function <- function(input, output, session, db_path) {
             easyClose = FALSE
         ))
 
+        extract_valid_contrasts <- function(dep_obj) {
+            rd_names <- character(0)
 
-        shiny::req(input$selected_table, input$datapoints_selected)
+            if (methods::is(dep_obj, "DEGdata")) {
+                tr <- dep_obj@test_result
+                if (!is.null(tr)) rd_names <- colnames(tr)
+            } else {
+                rd <- SummarizedExperiment::rowData(dep_obj)
+                if (!is.null(rd)) rd_names <- colnames(rd)
+            }
 
-        meta <- table_metadata()
-        annotation <- annotation_metadata()
-        if (is.null(meta)) {
+            if (is.null(rd_names) || !length(rd_names)) return(character(0))
+
+            sig_cols <- grep("_significant$", rd_names, value = TRUE)
+            unique(sub("_significant$", "", sig_cols))
+        }
+
+        tryCatch({
+            shiny::req(input$selected_table, input$datapoints_selected, input$annotation_table)
+
+            meta <- table_metadata()
+            annotation <- annotation_metadata()
+            if (is.null(meta)) {
+                removeModal()
+                return()
+            }
+
+            # Always include identifiers
+            id_cols <- trimws(unlist(strsplit(meta$identifier_columns, ",")))
+            datapoint_cols <- trimws(input$datapoints_selected)
+
+            safe_cols <- sprintf('"%s"', unique(c(id_cols, datapoint_cols)))
+            col_string <- paste(safe_cols, collapse = ", ")
+            query <- sprintf("SELECT %s FROM %s", col_string, input$selected_table)
+            new_data <- DBI::dbGetQuery(con, query)
+
+            annotation_data <- DBI::dbGetQuery(con, annotation)
+            table_id <- input$selected_table
+
+            name_parts <- strsplit(table_id, "_", fixed = TRUE)[[1]]
+            if (length(name_parts) < 2) {
+                stop(sprintf("Could not infer datatype from table name '%s'. Expected '<species>_<datatype>_...'.", table_id))
+            }
+            datatype <- name_parts[2]
+
+            is_reload <- table_id %in% rv$table_names
+
+            # Always refresh table-specific state so new column selections take effect.
+            per_table_slots <- c(
+                "tables", "ht_matrix", "id_cols", "data_cols", "datatype",
+                "species", "annotation", "dep_output", "contrasts", "constrasts",
+                "current_dep_heatmap_key", "current_dep_volcano_key"
+            )
+            for (slot in per_table_slots) {
+                if (!is.null(rv[[slot]]) && !is.null(rv[[slot]][[table_id]])) {
+                    rv[[slot]][[table_id]] <- NULL
+                }
+            }
+            if (!is.null(rv$heatmap_state) && !is.null(rv$heatmap_state[[table_id]])) {
+                rv$heatmap_state[[table_id]] <- NULL
+            }
+
+            rv$tables[[table_id]] <- new_data
+            matrix_data <- new_data[, datapoint_cols, drop = FALSE]
+            rv$ht_matrix[[table_id]] <- as.matrix(matrix_data)
+            rv$id_cols[[table_id]] <- id_cols
+            rv$data_cols[[table_id]] <- input$datapoints_selected
+            rv$datatype[[table_id]] <- datatype
+            rv$species[[table_id]] <- input$species
+            rv$annotation[[table_id]] <- annotation_data
+
+            if (!is_reload) {
+                rv$table_names <- c(rv$table_names, table_id)
+            }
+
+            cache_key <- paste(table_id, paste(rv$data_cols[[table_id]], collapse = "_"), "dep", sep = "_")
+
+            if (cache$exists(cache_key)) {
+                dep_output <- cache$get(cache_key)
+            } else {
+                if (rv$datatype[[table_id]] == "proteomics") {
+                    dep_output <- dep2_proteomics(rv$tables[[table_id]], table_id, rv)
+                } else if (rv$datatype[[table_id]] == "phosphoproteomics") {
+                    dep_output <- dep2_phosphoproteomics(rv$tables[[table_id]], table_id, rv)
+                } else if (rv$datatype[[table_id]] == "rnaseq") {
+                    dep_output <- dep2_rnaseq(rv$tables[[table_id]], table_id, rv)
+                } else {
+                    stop(sprintf("Unsupported datatype '%s' for table '%s'.", rv$datatype[[table_id]], table_id))
+                }
+                cache$set(cache_key, dep_output)
+            }
+
+            valid_contrasts <- extract_valid_contrasts(dep_output)
+            rv$dep_output[[table_id]] <- dep_output
+            rv$contrasts[[table_id]] <- valid_contrasts
+
             removeModal()
-            return()
-        }
-        # Always include identifiers
-        id_cols <- trimws(unlist(strsplit(meta$identifier_columns, ",")))
-        datapoint_cols <- trimws(input$datapoints_selected)
-
-        safe_cols <- sprintf('"%s"', unique(c(id_cols, datapoint_cols)))
-        col_string <- paste(safe_cols, collapse = ", ")
-        query <- sprintf("SELECT %s FROM %s", col_string, input$selected_table)
-        new_data <- DBI::dbGetQuery(con, query, )
-
-        annotation_data <- DBI::dbGetQuery(con, annotation, )
-        table_id <- input$selected_table
-
-
-        datatype <- strsplit(input$selected_table, "_")[[1]][2]
-        is_reload <- table_id %in% rv$table_names
-
-        # Always refresh table-specific state so new column selections take effect.
-        per_table_slots <- c(
-            "tables", "ht_matrix", "id_cols", "data_cols", "datatype",
-            "species", "annotation", "dep_output", "contrasts", "constrasts",
-            "current_dep_heatmap_key", "current_dep_volcano_key"
-        )
-        for (slot in per_table_slots) {
-            if (!is.null(rv[[slot]]) && !is.null(rv[[slot]][[table_id]])) {
-                rv[[slot]][[table_id]] <- NULL
-            }
-        }
-        if (!is.null(rv$heatmap_state) && !is.null(rv$heatmap_state[[table_id]])) {
-            rv$heatmap_state[[table_id]] <- NULL
-        }
-
-        rv$tables[[table_id]] <- new_data
-        matrix_data <- new_data[, datapoint_cols]
-        rv$ht_matrix[[table_id]] <- as.matrix(matrix_data)
-        rv$id_cols[[table_id]] <- id_cols
-        rv$data_cols[[table_id]] <- input$datapoints_selected
-        rv$datatype[[table_id]] <- datatype
-        rv$species[[table_id]] <- input$species
-        rv$annotation[[table_id]] <- annotation_data
-
-        if (!is_reload) {
-            rv$table_names <- c(rv$table_names, table_id)
-        }
-
-        cache_key <- paste(table_id, paste(rv$data_cols[[table_id]], collapse = "_"), "dep", sep = "_")
-        # message("Running analysis for:", table_id, " datatype:", rv$datatype[[table_id]])
-
-        # Recompute heatmap if the button is clicked
-
-        if (cache$exists(cache_key)) {
-            # message("Loading DEP output from cache: ", cache_key)
-            dep_output <- cache$get(cache_key)
-        } else {
-            # message("Computing and caching DEP output: ", cache_key)
-            if (rv$datatype[[table_id]] == "proteomics") {
-                dep_output <- dep2_proteomics(rv$tables[[table_id]], table_id, rv)
-            } else if (rv$datatype[[table_id]] == "phosphoproteomics") {
-                dep_output <- dep2_phosphoproteomics(rv$tables[[table_id]], table_id, rv)
-            } else if (rv$datatype[[table_id]] == "rnaseq") {
-                dep_output <- dep2_rnaseq(rv$tables[[table_id]], table_id, rv)
-            }
-            cache$set(cache_key, dep_output)
-        }
-        rd_names <- colnames(SummarizedExperiment::rowData(dep_output))
-        sig_cols <- grep("_significant$", rd_names, value = TRUE)
-        valid_contrasts <- sub("_significant$", "", sig_cols)
-        rv$dep_output[[table_id]] <- dep_output
-        rv$contrasts[[table_id]] <- valid_contrasts
-
-        removeModal()
+        }, error = function(e) {
+            removeModal()
+            showNotification(
+                paste("Failed to load data:", conditionMessage(e)),
+                type = "error",
+                duration = NULL
+            )
+        })
     })
 
     # DELETE DATA SELECTOR

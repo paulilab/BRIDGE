@@ -8,7 +8,7 @@ if (dir.exists(bridge_pkg_path) && bridge_dev_sync) {
 }
 
 if (!require(BRIDGE)) {
-    stop("BRIDGE package is not available. Install from R/BRIDGE or set BRIDGE_DEV_SYNC=1 when running from repository root.")
+    stop("BRIDGE package is not available. Install from R/BRIDGE or run with BRIDGE_DEV_SYNC=1 from repository root.")
 }
 #print("Loading BRIDGE package")
 library(BRIDGE)
