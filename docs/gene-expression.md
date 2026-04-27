@@ -36,4 +36,11 @@ Practical tips:
 - Validate stage ordering and replicate naming in your input columns.
 - Compare transformed and continuous views before conclusions.
 
-`<figure 4: Gene Expression module with multiple selected genes, visible transformation selector, and stage-wise trend lines.>`
+![Gene Expression module with selected protein trends](assets/gene_expression.png)
+
+*Figure 4. Gene Expression view for selected proteins across stages. Individual points show replicate-level values, and the connected markers summarize the stage-wise trend for each selected feature.*
+
+<details>
+<summary>Help: how to read this plot</summary>
+<p>Use this view to inspect candidate-level behavior after broader analyses such as PCA, heatmaps, or volcano plots. A convincing pattern usually combines a coherent trend across stages with reasonable replicate agreement. For phosphoproteomics, one gene can produce multiple peptide-level trends, so separate lines may represent related but distinct measurements.</p>
+</details>

@@ -42,4 +42,13 @@ Interpretation tips:
 - If intersection is too small, relax thresholds.
 - Check preview dimensions before interpreting cluster patterns.
 
-`<figure 8: Processed Integration workflow with settings panel, preview dimensions, integrated heatmaps, and LFC comparison output.>`
+For exact methodological scope, see [Methodology](methodology.md).
+
+![Processed Integration heatmaps for intersected significant features](assets/processed_integration.png)
+
+*Figure 8. Processed Integration heatmaps for the shared significant feature set across selected datasets. Each heatmap summarizes an integrated dataset after contrast-level filtering and ID intersection, with side profiles showing cluster-level expression trends.*
+
+<details>
+<summary>Help: how to read this plot</summary>
+<p>Processed integration first filters each dataset by the selected contrast and thresholds, then keeps only IDs shared across all selected datasets. The heatmaps show how those shared significant features behave in each dataset. Interpret strong shared patterns as candidate cross-omics signals, but remember that strict thresholds or one-to-many mappings can strongly affect which IDs remain in the intersection.</p>
+</details>

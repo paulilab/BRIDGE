@@ -31,4 +31,11 @@ Practical tips:
 - If clusters are unstable, try fewer/more conservative features first.
 - Use alongside Volcano Plot for consistency checks.
 
-`<figure 2: DE Heatmap settings and output, highlighting threshold controls, clustering options, and resulting cluster structure.>`
+![DE Heatmap output with clustered significant features](assets/de_heatmap.png)
+
+*Figure 2. DE Heatmap output after applying p-value and LFC thresholds. The heatmap groups significant features by similar expression patterns, while the side panels summarize the average trend for each cluster.*
+
+<details>
+<summary>Help: how to read this plot</summary>
+<p>Rows are features that passed the selected differential-expression thresholds, and columns are datapoints or replicates. Red and blue encode relative signal in opposite directions. Clusters help identify groups of features that rise or fall together, but the exact cluster structure depends on the selected thresholds and clustering settings.</p>
+</details>

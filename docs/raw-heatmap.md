@@ -27,4 +27,11 @@ Notes:
 - This module is for first-pass inspection.
 - It does not apply significance filtering.
 
-`<figure 1: Raw Heatmap view after compute, showing sample axis, feature axis, and overall signal pattern across selected datapoints.>`
+![Raw Heatmap view after compute](assets/raw_heatmap.png)
+
+*Figure 1. Raw Heatmap view after compute. Warmer colors indicate higher relative signal and cooler colors indicate lower relative signal across the selected datapoints. Use the column clustering and broad color bands to spot stage-level similarity, global shifts, or potential outlier samples.*
+
+<details>
+<summary>Help: how to read this plot</summary>
+<p>Each column is a selected datapoint or replicate, and each row is a measured feature. Columns that branch together at the top have more similar overall profiles. This plot is best used as a first-pass quality and pattern check; it does not by itself establish statistical significance.</p>
+</details>

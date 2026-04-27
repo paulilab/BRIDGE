@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="390" viewBox="0 0 1280 390" role="img" aria-labelledby="title desc">
+  <title id="title">BRIDGE end-to-end workflow</title>
+  <desc id="desc">A left-to-right workflow from SQLite database to loading data, individual exploration, integration, and export.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#2f4b4f"/>
+    </marker>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7fbf9"/>
+      <stop offset="1" stop-color="#eef5f2"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1280" height="390" rx="30" fill="url(#bg)"/>
+  <text x="60" y="58" font-family="Atkinson Hyperlegible, Verdana, sans-serif" font-size="30" font-weight="700" fill="#183135">BRIDGE workflow at a glance</text>
+  <text x="60" y="88" font-family="Atkinson Hyperlegible, Verdana, sans-serif" font-size="16" fill="#52696d">From a compatible local database to exploratory modules, integration views, and exportable results.</text>
+
+  <g font-family="Atkinson Hyperlegible, Verdana, sans-serif">
+    <g>
+      <rect x="55" y="145" width="170" height="150" rx="20" fill="#ffffff" stroke="#b4cbc6" stroke-width="2"/>
+      <ellipse cx="140" cy="166" rx="47" ry="12" fill="#d7ebe6" stroke="#4f7e77" stroke-width="2"/>
+      <rect x="93" y="166" width="94" height="42" fill="#d7ebe6" stroke="#4f7e77" stroke-width="2"/>
+      <ellipse cx="140" cy="208" rx="47" ry="12" fill="#c3ded8" stroke="#4f7e77" stroke-width="2"/>
+      <text x="140" y="245" text-anchor="middle" font-size="17" font-weight="700" fill="#1f3a3d">SQLite database</text>
+      <text x="140" y="269" text-anchor="middle" font-size="13" fill="#5b6d70">tables + metadata</text>
+    </g>
+
+    <line x1="235" y1="220" x2="304" y2="220" stroke="#2f4b4f" stroke-width="3" marker-end="url(#arrow)"/>
+
+    <g>
+      <rect x="315" y="145" width="175" height="150" rx="20" fill="#ffffff" stroke="#b9d2e4" stroke-width="2"/>
+      <rect x="346" y="164" width="113" height="68" rx="12" fill="#e7f2fb" stroke="#4f7fa3" stroke-width="2"/>
+      <line x1="359" y1="185" x2="447" y2="185" stroke="#4f7fa3" stroke-width="2"/>
+      <line x1="359" y1="202" x2="447" y2="202" stroke="#4f7fa3" stroke-width="2"/>
+      <line x1="359" y1="219" x2="426" y2="219" stroke="#4f7fa3" stroke-width="2"/>
+      <text x="402.5" y="258" text-anchor="middle" font-size="17" font-weight="700" fill="#1f3a3d">Loading Data</text>
+      <text x="402.5" y="279" text-anchor="middle" font-size="13" fill="#5b6d70">species, tables, columns</text>
+    </g>
+
+    <line x1="500" y1="220" x2="565" y2="220" stroke="#2f4b4f" stroke-width="3" marker-end="url(#arrow)"/>
+
+    <g>
+      <rect x="575" y="115" width="230" height="205" rx="24" fill="#ffffff" stroke="#d6c190" stroke-width="2"/>
+      <text x="690" y="146" text-anchor="middle" font-size="18" font-weight="700" fill="#1f3a3d">Individual Exploration</text>
+      <g font-size="13" fill="#4e5f62">
+        <rect x="604" y="166" width="82" height="30" rx="15" fill="#fff3d7" stroke="#bd8f2f"/>
+        <text x="645" y="186" text-anchor="middle">Heatmaps</text>
+        <rect x="695" y="166" width="82" height="30" rx="15" fill="#fff3d7" stroke="#bd8f2f"/>
+        <text x="736" y="186" text-anchor="middle">PCA</text>
+        <rect x="604" y="205" width="82" height="30" rx="15" fill="#fff3d7" stroke="#bd8f2f"/>
+        <text x="645" y="225" text-anchor="middle">Volcano</text>
+        <rect x="695" y="205" width="82" height="30" rx="15" fill="#fff3d7" stroke="#bd8f2f"/>
+        <text x="736" y="225" text-anchor="middle">Genes</text>
+        <rect x="626" y="244" width="128" height="30" rx="15" fill="#fff3d7" stroke="#bd8f2f"/>
+        <text x="690" y="264" text-anchor="middle">Enrichment</text>
+      </g>
+    </g>
+
+    <line x1="815" y1="220" x2="874" y2="220" stroke="#2f4b4f" stroke-width="3" marker-end="url(#arrow)"/>
+
+    <g>
+      <rect x="885" y="115" width="170" height="205" rx="24" fill="#ffffff" stroke="#b8c9a5" stroke-width="2"/>
+      <text x="970" y="146" text-anchor="middle" font-size="18" font-weight="700" fill="#1f3a3d">Integration</text>
+      <path d="M928 186 C948 158, 992 158, 1012 186" fill="none" stroke="#6b8f45" stroke-width="4"/>
+      <path d="M928 226 C948 254, 992 254, 1012 226" fill="none" stroke="#6b8f45" stroke-width="4"/>
+      <circle cx="926" cy="186" r="6" fill="#6b8f45"/>
+      <circle cx="1014" cy="186" r="6" fill="#6b8f45"/>
+      <circle cx="926" cy="226" r="6" fill="#6b8f45"/>
+      <circle cx="1014" cy="226" r="6" fill="#6b8f45"/>
+      <text x="970" y="270" text-anchor="middle" font-size="13" fill="#5b6d70">raw trends</text>
+      <text x="970" y="292" text-anchor="middle" font-size="13" fill="#5b6d70">processed overlap</text>
+    </g>
+
+    <line x1="1068" y1="220" x2="1110" y2="220" stroke="#2f4b4f" stroke-width="3" marker-end="url(#arrow)"/>
+
+    <g>
+      <rect x="1164" y="145" width="15" height="150" rx="7" fill="#ffffff" stroke="#d5b6aa" stroke-width="2"/>
+      <rect x="1120" y="145" width="115" height="150" rx="20" fill="#ffffff" stroke="#d5b6aa" stroke-width="2"/>
+      <path d="M1152 174 H1210 M1152 198 H1210 M1152 222 H1195" stroke="#a85e43" stroke-width="3" stroke-linecap="round"/>
+      <path d="M1137 175 l8 8 l15 -18" fill="none" stroke="#a85e43" stroke-width="3" stroke-linecap="round"/>
+      <text x="1177.5" y="252" text-anchor="middle" font-size="17" font-weight="700" fill="#1f3a3d">Export</text>
+      <text x="1177.5" y="276" text-anchor="middle" font-size="13" fill="#5b6d70">plots + tables</text>
+    </g>
+  </g>
+</svg>

@@ -34,4 +34,11 @@ Important notes:
 - If very few significant features pass thresholds, results may be empty.
 - Phosphoproteomics enrichment may be unavailable depending on data/object context.
 
-`<figure 5: Enrichment Analysis controls and resulting dot plot, showing contrast choice, enrichment database, and significant-term output.>`
+![Enrichment Analysis dot plot](assets/enrichment.png)
+
+*Figure 5. Enrichment Analysis dot plot. Terms on the y-axis represent enriched biological functions or pathways, GeneRatio shows the fraction of significant features associated with each term, point size reflects hit count, and color represents adjusted p-value.*
+
+<details>
+<summary>Help: how to read this plot</summary>
+<p>Prioritize terms with stronger adjusted significance, larger GeneRatio, and enough supporting features to be biologically credible. Very small counts can still be statistically significant, but they should be interpreted carefully and checked against the feature table and the selected contrast.</p>
+</details>
