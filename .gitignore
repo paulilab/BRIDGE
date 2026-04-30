@@ -39,6 +39,7 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 renv/*
+/renv/*
 
 # Documentation build output
 site/
