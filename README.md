@@ -1,5 +1,7 @@
 # BRIDGE
 
+[![Documentation Status](https://readthedocs.org/projects/bridge-paulilab/badge/?version=latest)](https://bridge-paulilab.readthedocs.io/en/latest/?badge=latest)
+
 ## Overview
 
 BRIDGE is a user-friendly app that enables scientists to **explore, analyze and integrate multi-omics datasets** (proteomics, phosphoproteomics and RNA-seq) interactively, privately and without the need of programming skills. It supports both **individual** and **integrative** analysis of datasets and generates interactive visualizations such as heatmaps, volcano plots, and time-course. BRIDGE is especially powerful for identifying shared biological signals across different omics layers. 
