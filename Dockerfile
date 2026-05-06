@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/root/.cache/apt \
     && apt upgrade -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt update -y && apt install -y build-essential software-properties-common \
-    && apt install -y tzdata wget libxml2-dev libglpk-dev libnetcdf-dev perl-base gcc-14 g++-14 libstdc++-14-dev libc++-dev libc++abi-dev gfortran-14 libgfortran5 libcurl4-openssl-dev libssl-dev liblzma-dev
+    && apt install -y tzdata wget libxml2-dev libglpk-dev libnetcdf-dev perl-base gcc-14 g++-14 libstdc++-14-dev libc++-dev libc++abi-dev gfortran-14 libgfortran5 libcurl4-openssl-dev libssl-dev liblzma-dev curl
 
 # Set versions for gcc, g++, and gfortran
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 \
