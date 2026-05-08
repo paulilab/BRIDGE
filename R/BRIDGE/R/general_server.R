@@ -17,6 +17,19 @@ server_function <- function(input, output, session, db_path) {
     )
     rv <- reactiveValues(tables = list(), table_names = character(), ht_matrix = list(), data_cols = list(), datatype = character(), constrasts = list()) # variable that stores most of the important values for each table
 
+    # Populate species choices from table_metadata
+    local({
+        metadata <- tryCatch(
+            DBI::dbGetQuery(con, "SELECT table_name FROM table_metadata"),
+            error = function(e) data.frame(table_name = character(0))
+        )
+        species_raw <- unique(sub("_.*", "", metadata$table_name))
+        species_raw <- species_raw[nzchar(species_raw)]
+        species_display <- tools::toTitleCase(species_raw)
+        choices <- setNames(species_raw, species_display)
+        shiny::updateSelectInput(session, "species", choices = choices)
+    })
+
     valid_tables <- shiny::reactive({
         shiny::req(input$species)
         species <- tolower(input$species)
