@@ -243,7 +243,13 @@ int_heatmap_server <- function(input, output, session, rv) {
         pageLength = 5,
         lengthMenu = c(5, 10, 25, 50, 100),
         dom = "Blfrtip",
-        buttons = c("copy", "csv", "excel", "pdf", "print")
+        buttons = list(
+          list(extend = "copy", exportOptions = list(modifier = list(page = "all"))),
+          list(extend = "csv",  exportOptions = list(modifier = list(page = "all"))),
+          list(extend = "excel",exportOptions = list(modifier = list(page = "all"))),
+          list(extend = "pdf",  exportOptions = list(modifier = list(page = "all"))),
+          "print"
+        )
       )
     )
   })

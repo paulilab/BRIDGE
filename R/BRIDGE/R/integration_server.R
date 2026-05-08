@@ -208,7 +208,13 @@ integration_ui <- function(input, output, session, rv) {
                 output_id <- paste0("processed_tbl_", table_name)
                 data <- rv$intersected_tables_processed[[table_name]]
                 output[[output_id]] <- DT::renderDT({
-                    DT::datatable(data %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 5, lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
+                    DT::datatable(data %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 5, lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = list(
+                        list(extend = "copy", exportOptions = list(modifier = list(page = "all"))),
+                        list(extend = "csv",  exportOptions = list(modifier = list(page = "all"))),
+                        list(extend = "excel",exportOptions = list(modifier = list(page = "all"))),
+                        list(extend = "pdf",  exportOptions = list(modifier = list(page = "all"))),
+                        "print"
+                    )))
                 })
             })
         })        
@@ -315,6 +321,12 @@ integration_ui <- function(input, output, session, rv) {
             )
         }
 
-        DT::datatable(combined_data() %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 10, lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
+        DT::datatable(combined_data() %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 10, lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = list(
+                        list(extend = "copy", exportOptions = list(modifier = list(page = "all"))),
+                        list(extend = "csv",  exportOptions = list(modifier = list(page = "all"))),
+                        list(extend = "excel",exportOptions = list(modifier = list(page = "all"))),
+                        list(extend = "pdf",  exportOptions = list(modifier = list(page = "all"))),
+                        "print"
+                    )))
     })
 }

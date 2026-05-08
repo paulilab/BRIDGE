@@ -386,7 +386,13 @@ server_function <- function(input, output, session, db_path) {
                 # %>% dplyr::select(-any_of(c("name")))
             }
             output[[paste0("table_", tbl_name)]] <- DT::renderDT({
-                DT::datatable(complete %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 10, lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = c("copy", "csv", "excel", "pdf", "print")))
+                DT::datatable(complete %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric)), extensions = "Buttons", filter = "top", options = list(scrollX = TRUE, pageLength = 10, lengthMenu = c(5, 10, 25, 50, 100), dom = "Blfrtip", buttons = list(
+                        list(extend = "copy", exportOptions = list(modifier = list(page = "all"))),
+                        list(extend = "csv",  exportOptions = list(modifier = list(page = "all"))),
+                        list(extend = "excel",exportOptions = list(modifier = list(page = "all"))),
+                        list(extend = "pdf",  exportOptions = list(modifier = list(page = "all"))),
+                        "print"
+                    )))
             })
         })
     })
