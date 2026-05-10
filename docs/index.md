@@ -10,10 +10,10 @@ Supported data types:
 
 What this guide covers:
 
-- Getting to a first successful plot
 - Installing and running BRIDGE
 - Creating and validating the SQLite database
 - Loading datasets correctly
+- Getting to a first successful plot
 - Using each analysis module
 - Running raw and processed integration
 
@@ -28,4 +28,4 @@ Recommended reading order for a first pass:
 7. [Loading Data](loading-data.md)
 8. [Individual Exploration](individual-exploration.md)
 
-If you only want to try the app quickly, start with [Quick Start](quick-start.md). If you want to understand exactly what BRIDGE computes before interpreting results, read [Methodology](methodology.md) early.
+If you only want to try the app quickly, start with [Quick Start](quick-start.md). If you want to understand exactly what BRIDGE computes before interpreting results, read [Methodology](methodology.md).
