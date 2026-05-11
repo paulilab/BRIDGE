@@ -46,7 +46,7 @@ integration_ui <- function(input, output, session, rv) {
                             shiny::selectInput(
                                 inputId = "scale_integration",
                                 label = "Select scale:",
-                                choices = c("Continous", "Log-scale"),
+                                choices = c("Continous", "Log-scale", "Total Intensity", "Median Normalization", "TMM", "CPM"),
                                 selected = "Continous"
                             ),
                             uiOutput("integration_datapoints_download_ui"),
@@ -284,7 +284,8 @@ integration_ui <- function(input, output, session, rv) {
         output,
         session,
         data_combined = reactive(combined_data()),
-        reference_data_names = reactive(rv$integration_reference_cols)
+        reference_data_names = reactive(rv$integration_reference_cols),
+        dataset_columns = reactive(rv$integration_dataset_columns)
     )
 
     ### PROCESSED INTEGRATION PIPELINE

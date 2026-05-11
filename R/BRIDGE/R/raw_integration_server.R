@@ -18,11 +18,17 @@ raw_integration <- function(input, output, session, rv, combined_data) {
         # Store all unique data column names across all selected tables
         reference_data_names <- unique(unlist(selected_lists))
         tables_to_join <- list()
+        dataset_columns <- list()  # Track which columns belong to which dataset
 
         for (i in seq_along(selected_tables)) {
             tbl <- selected_tables[[i]]
             selected_data_cols <- selected_lists[[i]]
             df <- rv$tables[[tbl]][, c(rv$id_cols[[tbl]], selected_data_cols), drop = FALSE]
+
+            # Normalize Gene_Name to title case for cross-dataset ID matching
+            if ("Gene_Name" %in% names(df)) {
+                df$Gene_Name <- stringr::str_to_title(df$Gene_Name)
+            }
 
             # Construct ID column
             if (rv$datatype[[tbl]] == "phosphoproteomics" && all(c("Gene_Name", "pepG") %in% names(df))) {
@@ -32,6 +38,9 @@ raw_integration <- function(input, output, session, rv, combined_data) {
             } else {
                 df$unique_id <- df$Gene_Name
             }
+            
+            # Track which columns belong to this dataset
+            dataset_columns[[tbl]] <- selected_data_cols
 
             # Ensure ID columns match across tables
             id_cols <- setdiff(c("unique_id", rv$id_cols[[tbl]]), selected_data_cols)
@@ -55,6 +64,7 @@ raw_integration <- function(input, output, session, rv, combined_data) {
         combined_df <- dplyr::bind_rows(tables_to_join) %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric))
         combined_data(combined_df)
         rv$integration_reference_cols <- reference_data_names
+        rv$integration_dataset_columns <- dataset_columns  # Store dataset->columns mapping
 
         # Update search box
         updateSelectizeInput(session, "search_gene_integration", choices = sort(unique(gsub("_.*", "", combined_df$unique_id))), server = TRUE)

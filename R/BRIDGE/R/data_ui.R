@@ -17,7 +17,7 @@ data_ui_object <- shinydashboard::box(
     shiny::tags$div(style = "height:8px;"),
     shiny::helpText("Select Species, Table and the desired columns to load the data "),
     shiny::tags$div(style = "height:10px;"),
-    shiny::selectInput("species", "Select Species", choices = NULL, multiple = T),
+    shiny::selectInput("species", "Select Species", choices = NULL, multiple = FALSE),
     shiny::helpText("Choose your species of interest"),
     shiny::tags$div(style = "height:10px;"),
     shiny::uiOutput("table_selector"),

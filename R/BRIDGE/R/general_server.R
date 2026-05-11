@@ -307,15 +307,45 @@ server_function <- function(input, output, session, db_path) {
         if (length(rv$table_names) == 0) {
             return("No table loaded yet.")
         } else {
-            # Create an unordered list with each table name as a list item
+            # Create a list with each table name and download button
             htmltools::tagList(
                 shiny::tags$ul(
                     lapply(rv$table_names, function(tbl_name) {
-                        shiny::tags$li(tbl_name)
+                        download_id <- paste0("download_", gsub("[^a-zA-Z0-9]", "_", tbl_name))
+                        shiny::tags$li(
+                            tbl_name,
+                            " ",
+                            shiny::downloadButton(download_id, label = "Download .rds.gz", class = "btn-sm")
+                        )
                     })
                 )
             )
         }
+    })
+    
+    # Download handlers for each loaded table
+    observeEvent(rv$table_names, {
+        lapply(rv$table_names, function(tbl_name) {
+            download_id <- paste0("download_", gsub("[^a-zA-Z0-9]", "_", tbl_name))
+            
+            output[[download_id]] <- downloadHandler(
+                filename = function() {
+                    paste0(tbl_name, ".rds.gz")
+                },
+                content = function(file) {
+                    # Get the appropriate object based on datatype
+                    obj <- rv$dep_output[[tbl_name]]
+                    
+                    if (is.null(obj)) {
+                        showNotification(paste("Object for", tbl_name, "not yet processed."), type = "error")
+                        return(NULL)
+                    }
+                    
+                    # Save with gzip compression
+                    saveRDS(obj, file = file, compress = "gzip")
+                }
+            )
+        })
     })
 
     #### END OF DATA RETRIEVING SERVER ####

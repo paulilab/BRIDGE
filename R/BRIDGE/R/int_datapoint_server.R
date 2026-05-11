@@ -1,11 +1,15 @@
 #' @export
-int_datapoints_server <- function(input, output, session, data_combined, reference_data_names) {
+int_datapoints_server <- function(input, output, session, data_combined, reference_data_names, dataset_columns = NULL) {
     get_data_combined <- function() {
         if (is.function(data_combined)) data_combined() else data_combined
     }
 
     get_reference_cols <- function() {
         if (is.function(reference_data_names)) reference_data_names() else reference_data_names
+    }
+    
+    get_dataset_columns <- function() {
+        if (is.function(dataset_columns)) dataset_columns() else dataset_columns
     }
 
     processed_data <- reactive({
@@ -18,11 +22,15 @@ int_datapoints_server <- function(input, output, session, data_combined, referen
                 "Integrate data first to enable the datapoints plot."
             )
         )
-        if (scale_input == "Continous") {
+        switch(scale_input,
+            "Continous" = raw_data,
+            "Log-scale" = log2_transform(raw_data),
+            "Total Intensity" = total_intensity_normalization(raw_data),
+            "Median Normalization" = median_normalization(raw_data),
+            "TMM" = tmm_normalization(raw_data),
+            "CPM" = cpm_normalization(raw_data),
             raw_data
-        } else if (scale_input == "Log-scale") {
-            log2_transform(raw_data)
-        }
+        )
     })
 
     selected_data <- reactive({
@@ -37,30 +45,75 @@ int_datapoints_server <- function(input, output, session, data_combined, referen
     data_long <- reactive({
         data <- selected_data()
         ref_cols <- get_reference_cols()
+        dataset_cols <- get_dataset_columns()
         shiny::req(!is.null(ref_cols), length(ref_cols) > 0)
-        shiny::validate(
-            shiny::need(all(ref_cols %in% colnames(data)),
-                "Selected integration columns are not available in the current integrated table."
-            )
-        )
-
-        # Clean stage names
-        unique_datapoints <- ref_cols %>%
-            gsub("_[0-9]+$", "", .) %>%
-            gsub("[_.-]+$", "", .) %>%
-            unique() %>%
-            str_sort(decreasing = FALSE, numeric = TRUE)         
-
-        # Reshape
-        data_long <- data %>%
-            pivot_longer(cols = all_of(ref_cols), names_to = "Stage", values_to = "Expression") %>%
-            mutate(
-                StageGroup = gsub("[0-9]+$", "", Stage) %>% gsub("[_.-]+$", "", .),
-                #StageGroup = factor(StageGroup, levels = mixedrank(unique(Stage)))
-                StageGroup = factor(StageGroup, levels = unique_datapoints)
-            )
         
-        data_long
+        # If no dataset_columns mapping, fall back to original behavior (pivot all columns)
+        if (is.null(dataset_cols) || length(dataset_cols) == 0) {
+            shiny::validate(
+                shiny::need(all(ref_cols %in% colnames(data)),
+                    "Selected integration columns are not available in the current integrated table."
+                )
+            )
+
+            # Clean stage names
+            unique_datapoints <- ref_cols %>%
+                gsub("_[0-9]+$", "", .) %>%
+                gsub("[_.-]+$", "", .) %>%
+                unique() %>%
+                str_sort(decreasing = FALSE, numeric = TRUE)
+            
+            # Reshape
+            data_long <- data %>%
+                pivot_longer(cols = all_of(ref_cols), names_to = "Stage", values_to = "Expression") %>%
+                mutate(
+                    StageGroup = gsub("[0-9]+$", "", Stage) %>% gsub("[_.-]+$", "", .),
+                    StageGroup = factor(StageGroup, levels = unique_datapoints)
+                )
+            return(data_long)
+        }
+        
+        # Split by source and pivot only relevant columns for each source
+        data_by_source <- split(data, data$source)
+        
+        data_long_list <- lapply(names(data_by_source), function(source_name) {
+            source_data <- data_by_source[[source_name]]
+            cols_for_source <- dataset_cols[[source_name]]
+            
+            if (is.null(cols_for_source) || length(cols_for_source) == 0) {
+                return(NULL)
+            }
+            
+            # Only include columns that are both in the dataset_cols mapping and in the actual data
+            cols_to_pivot <- intersect(cols_for_source, colnames(source_data))
+            
+            if (length(cols_to_pivot) == 0) {
+                return(NULL)
+            }
+            
+            # Clean stage names
+            unique_datapoints <- cols_to_pivot %>%
+                gsub("_[0-9]+$", "", .) %>%
+                gsub("[_.-]+$", "", .) %>%
+                unique() %>%
+                str_sort(decreasing = FALSE, numeric = TRUE)
+            
+            source_data %>%
+                pivot_longer(cols = all_of(cols_to_pivot), names_to = "Stage", values_to = "Expression") %>%
+                mutate(
+                    StageGroup = gsub("[0-9]+$", "", Stage) %>% gsub("[_.-]+$", "", .),
+                    StageGroup = factor(StageGroup, levels = unique_datapoints)
+                )
+        })
+        
+        # Filter out NULL entries and combine
+        data_long_list <- Filter(Negate(is.null), data_long_list)
+        
+        if (length(data_long_list) == 0) {
+            shiny::validate(shiny::need(FALSE, "No data found for the selected genes."))
+        }
+        
+        dplyr::bind_rows(data_long_list)
     })
     data_avg <- reactive({
         data_long() %>%
@@ -77,7 +130,7 @@ int_datapoints_server <- function(input, output, session, data_combined, referen
             geom_line(data = avg, aes(x = StageGroup, y = MeanExpression, color = unique_id, group = unique_id), linewidth = 1.2) +
             geom_point(data = avg, aes(x = StageGroup, y = MeanExpression, color = unique_id), size = 4, shape = 17) +
             scale_color_manual(values = bridge_discrete_pal(length(unique(long$unique_id)))) +
-            facet_wrap(~source, ncol = 2, scales = "free_y") +
+            facet_wrap(~source, ncol = 2, scales = "free") +
             labs(x = "Stage", y = "Expression", color = "Gene") +
             theme_minimal() +
             theme(
