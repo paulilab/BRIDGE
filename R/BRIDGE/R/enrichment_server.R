@@ -5,6 +5,60 @@ EnrichmentServer <- function(id, rv, tbl_name) {
         enrichment_dep_ready <- reactiveVal(FALSE)
         enrichment_dep_error <- reactiveVal(NULL)
 
+        # Helper function to auto-detect best gene name casing for any species
+        detect_best_gene_case <- function(gene_names, species) {
+            # Map species to organism database name
+            org_db_map <- list(
+                "Human" = "org.Hs.eg.db",
+                "Mouse" = "org.Mm.eg.db",
+                "Zebrafish" = "org.Dr.eg.db"
+            )
+            org_db_name <- org_db_map[[species]]
+            
+            # Fallback for unknown species
+            if (is.null(org_db_name)) {
+                message("Species '", species, "' not in predefined list; attempting to detect best case...")
+                org_db_name <- "org.Hs.eg.db"  # Use human as last resort
+            }
+            
+            # Sample genes to test (up to 100)
+            sample_n <- min(100, length(gene_names))
+            if (sample_n == 0) {
+                return(function(x) x)
+            }
+            sample_genes <- gene_names[seq_len(sample_n)]
+            
+            # Try different cases
+            cases_to_test <- list(
+                uppercase = stringr::str_to_upper(sample_genes),
+                lowercase = stringr::str_to_lower(sample_genes),
+                titlecase = stringr::str_to_title(sample_genes)
+            )
+            
+            # Test each case by attempting ENTREZID mapping
+            match_rates <- sapply(cases_to_test, function(genes) {
+                tryCatch({
+                    org_db <- get(org_db_name)
+                    mapped <- AnnotationDbi::mapIds(org_db, keys = genes, column = "ENTREZID",
+                                                    keytype = "SYMBOL", multiVals = "first")
+                    sum(!is.na(mapped))
+                }, error = function(e) 0)
+            })
+            
+            # Return the case that gives best match rate
+            best_case <- names(which.max(match_rates))
+            best_rate <- max(match_rates)
+            message("Auto-detected best gene name case: '", best_case, "' (", best_rate, " / ", length(sample_genes), " genes matched)")
+            
+            # Return the transformation function
+            switch(best_case,
+                uppercase = function(x) stringr::str_to_upper(x),
+                lowercase = function(x) stringr::str_to_lower(x),
+                titlecase = function(x) stringr::str_to_title(x),
+                function(x) x  # fallback: no transformation
+            )
+        }
+
         output$plot_download_ui <- renderUI({
             if (is.null(enrichment_plot_obj())) return(NULL)
             plot_download_controls(session$ns, "enrichment")
@@ -132,9 +186,31 @@ EnrichmentServer <- function(id, rv, tbl_name) {
                 contrast <- input$contrasts_enrichment
                 dep_output <- rv$dep_output[[tbl_name]]
 
-                # Fallback for unsupported organisms
-                Gene_Names <- stringr::str_to_lower(gsub("_.*$", "", rownames(dep_output)))
-                #rownames(dep_output) <- stringr::str_to_upper(rownames(dep_output))
+                if (is.null(contrast) || !nzchar(contrast)) {
+                    enrichment_plot_obj(NULL)
+                    output$enrichment <- renderUI({
+                        div(
+                            style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
+                            "Please select a contrast before running enrichment."
+                        )
+                    })
+                    return(invisible())
+                }
+
+                output$enrichment <- renderUI({
+                    div(
+                        style = "padding: 20px; color: #337ab7; font-weight: bold; text-align: center;",
+                        "Running enrichment analysis..."
+                    )
+                })
+
+                # Extract gene names and auto-detect best case for this organism
+                Gene_Names <- gsub("_.*$", "", rownames(dep_output))
+                
+                # Auto-detect which case (uppercase, lowercase, titlecase) gives best matches
+                case_transform <- detect_best_gene_case(Gene_Names, species)
+                Gene_Names <- case_transform(Gene_Names)
+                
                 rownames(dep_output) <- Gene_Names
                 #message("NAMES: ", paste(rownames(dep_output)[1:5], collapse = ", "))
 
@@ -143,68 +219,79 @@ EnrichmentServer <- function(id, rv, tbl_name) {
                 }
 
                 dep_output <- strip_sig(dep_output) # Remove old sig cols if present
-                # Sig filtering used in your original code before ORA
-                dep_pg <- DEP2::add_rejections(dep_output, alpha = input$enrichment_pcutoff, lfc = input$enrichment_fccutoff)                
-                sig_count <- check_sig(dep_pg)
-                #message("Significant hits for enrichment: ", sig_count)
-                if (sig_count < 10) {                
-                    enrichment_plot_obj(NULL)
-                    output$enrichment <- renderUI({
-                        div(
-                            style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
-                            paste0("Not enough significant hits (n < 10) for enrichment analysis with contrast '", contrast, "'.")
-                        )
-                    })
-                    return(invisible())
-                } else{
-                    message("Performing ORA enrichment analysis with contrast '", contrast, "' species '", species, "' and type '", enrichment_type, "' on '", sig_count, "' hits like '",paste(rownames(dep_pg)[1:5], collapse = ',') ,"' ...")
-                    
-                    # Try/catch for DEP2::test_ORA
+
+                withProgress(message = "Computing enrichment", value = 0, {
+                    incProgress(0.2, detail = "Filtering significant hits")
+                    dep_pg <- DEP2::add_rejections(dep_output, alpha = input$enrichment_pcutoff, lfc = input$enrichment_fccutoff)
+                    sig_count <- check_sig(dep_pg)
+
+                    if (sig_count < 10) {
+                        enrichment_plot_obj(NULL)
+                        output$enrichment <- renderUI({
+                            div(
+                                style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
+                                paste0("Not enough significant hits (n < 10) for enrichment analysis with contrast '", contrast, "'.")
+                            )
+                        })
+                        return(invisible())
+                    }
+
+                    message("Performing ORA enrichment analysis with contrast '", contrast, "' species '", species, "' and type '", enrichment_type, "' on '", sig_count, "' hits like '", paste(rownames(dep_pg)[1:5], collapse = ','), "' ...")
+
+                    incProgress(0.6, detail = "Running ORA")
                     res_ora <- tryCatch({
-                        withCallingHandlers(
-                            DEP2::test_ORA(
-                                dep_pg,
-                                type = enrichment_type,
-                                species = species,
-                                contrasts = contrast
-                            ),
-                            warning = function(w) {
-                                if (grepl("no applicable method for ", conditionMessage(w))) {
-                                    output$enrichment <- renderUI({
-                                        div(
-                                            style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
-                                            "No genes matched with annotation in the selected organism database! Please check your cutoffs or try another contrast."
-                                        )
-                                    })
-                                    invokeRestart("muffleWarning")
-                                }
-                            }
+                        DEP2::test_ORA(
+                            dep_pg,
+                            type = enrichment_type,
+                            species = species,
+                            contrasts = contrast
                         )
                     }, error = function(e) {
-                        if (grepl("no applicable method for ", conditionMessage(e))) {
-                            output$enrichment <- renderUI({
-                                div(
-                                    style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
-                                    "No genes matched with annotation in the selected organism database! Please check your cutoffs or try another contrast."
-                                )
-                            })
-                            return(NULL)
-                        } else {
-                            stop(e)
-                        }
+                        output$enrichment <- renderUI({
+                            div(
+                                style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
+                                paste0("Enrichment failed: ", conditionMessage(e))
+                            )
+                        })
+                        return(NULL)
                     })
 
-                    if (!is.null(res_ora)) {
-                        enrichment_plot_obj(enrichplot::dotplot(res_ora))
+                    if (is.null(res_ora)) return(invisible())
+
+                    ora_df <- tryCatch(as.data.frame(res_ora), error = function(e) NULL)
+                    if (is.null(ora_df) || nrow(ora_df) == 0) {
+                        enrichment_plot_obj(NULL)
                         output$enrichment <- renderUI({
-                            plotOutput(session$ns("enrichment_plot"), height = "520px")
+                            div(
+                                style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
+                                "No enriched terms found for current cutoffs/contrast."
+                            )
                         })
-                        output$enrichment_plot <- renderPlot({
-                            req(!is.null(enrichment_plot_obj()))
-                            enrichment_plot_obj()
-                        })
+                        return(invisible())
                     }
-                }
+
+                    incProgress(0.2, detail = "Preparing enrichment plot")
+                    plot_obj <- tryCatch(enrichplot::dotplot(res_ora), error = function(e) {
+                        output$enrichment <- renderUI({
+                            div(
+                                style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
+                                paste0("Enrichment completed but plotting failed: ", conditionMessage(e))
+                            )
+                        })
+                        NULL
+                    })
+
+                    if (is.null(plot_obj)) return(invisible())
+
+                    enrichment_plot_obj(plot_obj)
+                    output$enrichment <- renderUI({
+                        plotOutput(session$ns("enrichment_plot"), height = "520px")
+                    })
+                    output$enrichment_plot <- renderPlot({
+                        req(!is.null(enrichment_plot_obj()))
+                        enrichment_plot_obj()
+                    })
+                })
             },
             ignoreInit = TRUE
         )
