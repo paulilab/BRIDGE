@@ -14,13 +14,9 @@ raw_integration <- function(input, output, session, rv, combined_data) {
             rv$integration_reference_cols <- NULL
             return()
         }
-        if (length(unique(sapply(selected_lists, length))) > 1) {
-            combined_data(data.frame(Message = "Error: Column numbers differ. Matching not possible."))
-            rv$integration_reference_cols <- NULL
-            return()
-        }
 
-        reference_data_names <- selected_lists[[1]]
+        # Store all unique data column names across all selected tables
+        reference_data_names <- unique(unlist(selected_lists))
         tables_to_join <- list()
 
         for (i in seq_along(selected_tables)) {
@@ -45,13 +41,12 @@ raw_integration <- function(input, output, session, rv, combined_data) {
             missing_ids <- setdiff(all_id_names, names(df))
             for (col in missing_ids) df[[col]] <- NA
 
-            # Rename data columns (to match the first table)
-            if (i > 1) {
-                colnames(df)[match(selected_data_cols, names(df))] <- reference_data_names
-            }
-
-            # Reorder columns
-            df <- df[, c(all_id_names, reference_data_names), drop = FALSE]
+            # Keep original data column names (don't force renaming to first table)
+            # This allows integration of datasets with different numbers of columns
+            
+            # Reorder columns: ID columns first, then data columns, then source
+            data_cols_order <- setdiff(names(df), c(all_id_names, "source"))
+            df <- df[, c(all_id_names, data_cols_order), drop = FALSE]
             df$source <- tbl
             tables_to_join[[tbl]] <- df
         }

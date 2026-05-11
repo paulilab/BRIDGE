@@ -253,29 +253,22 @@ integration_ui <- function(input, output, session, rv) {
             input[[paste0("cols_selected_int", tbl)]]
         })
 
-        if (length(unique(sapply(selected_columns, length))) > 1) {
-            return(p("Column numbers differ. Matching not possible.", style = "color: red;"))
-        }
-
-        n <- length(selected_columns[[1]])
-        if (n == 0) {
-            return(NULL)
-        }
-
-        matches <- lapply(seq_len(n), function(i) {
-            paste(
-                sapply(seq_along(selected_columns), function(j) {
-                    selected_columns[[j]][i]
-                }),
-                collapse = " ⇄ "
+        # Display all selected columns per table (allow different counts)
+        matches <- lapply(input$integration, function(tbl) {
+            cols <- selected_columns[[which(input$integration == tbl)]]
+            htmltools::tagList(
+                shiny::tags$b(paste0(tbl, ":")),
+                shiny::tags$ul(
+                    lapply(cols, function(col) {
+                        shiny::tags$li(col)
+                    })
+                )
             )
         })
 
         htmltools::tagList(
             shiny::tags$ul(
-                lapply(matches, function(line) {
-                    shiny::tags$li(line)
-                })
+                matches
             )
         )
     })

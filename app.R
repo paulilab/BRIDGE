@@ -1,7 +1,7 @@
 if (!require(BRIDGE)) {
     library(devtools)
     devtools::document("R/BRIDGE")
-    devtools::install("R/BRIDGE", keep_source = T, upgrade = "never")    
+    devtools::install("R/BRIDGE", keep_source = T, upgrade = FALSE)    
 }
 #print("Loading BRIDGE package")
 library(BRIDGE)
