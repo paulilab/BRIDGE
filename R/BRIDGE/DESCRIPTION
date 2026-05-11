@@ -50,4 +50,4 @@ Remotes:
     YuLab-SMU/clusterProfiler,
     YuLab-SMU/clusterProfiler.dplyr
 Suggests: testthat
-RoxygenNote: 7.3.2
+Config/roxygen2/version: 8.0.0

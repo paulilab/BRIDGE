@@ -1,4 +1,4 @@
-FROM rocker/shiny-verse:4.5.1
+FROM rocker/shiny-verse:4.6.0
 ARG DEBIAN_FRONTEND=noninteractive
 ENV SHINY_LOG_STDERR=1
 ENV TZ=UTC

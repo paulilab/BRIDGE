@@ -21,6 +21,7 @@ suppressPackageStartupMessages({
     library(ComplexHeatmap)
     library(matrixStats)
     library(gtools)
+    library(tidySummarizedExperiment)
 })
 # library(pool)
 # library(shinydashboard)
