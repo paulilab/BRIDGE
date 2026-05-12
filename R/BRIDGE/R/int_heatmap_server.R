@@ -59,6 +59,37 @@ int_heatmap_server <- function(input, output, session, rv) {
     }
   }
 
+  # Ensure ID vector length always matches matrix row count
+  coerce_unique_id <- function(meta_df, mat, datatype, tbl_name = NULL) {
+    uid <- make_unique_id(meta_df, mat, datatype)
+    n_mat <- nrow(mat)
+
+    if (length(uid) != n_mat) {
+      n_keep <- min(length(uid), n_mat)
+      if (is.null(n_keep) || !is.finite(n_keep) || n_keep < 1) {
+        return(rep_len(seq_len(max(1L, n_mat)), n_mat))
+      }
+
+      # keep only aligned prefix; this avoids rownames<- length mismatch
+      uid <- uid[seq_len(n_keep)]
+      if (n_keep < n_mat) {
+        uid <- c(uid, paste0("row_", seq.int(n_keep + 1L, n_mat)))
+      }
+
+      message(sprintf(
+        "[integration heatmap] ID length mismatch%s: meta ids=%d, matrix rows=%d; coercing to %d.",
+        if (!is.null(tbl_name)) paste0(" for ", tbl_name) else "",
+        length(make_unique_id(meta_df, mat, datatype)),
+        n_mat,
+        length(uid)
+      ))
+    }
+
+    uid <- as.character(uid)
+    uid[is.na(uid) | !nzchar(uid)] <- paste0("row_", which(is.na(uid) | !nzchar(uid)))
+    uid
+  }
+
   # One reactive that computes everything needed for heatmaps + cluster table
   heatmap_state <- shiny::reactive({
     shiny::req(rv$intersected_matrix_processed, rv$intersected_tables_processed, rv$datatype, input$heatmap_k)
@@ -86,12 +117,21 @@ int_heatmap_server <- function(input, output, session, rv) {
       # Drop rows with any non-finite values (avoids kmeans hanging/failing silently)
       keep <- apply(mat, 1, function(x) all(is.finite(x)))
       mat <- mat[keep, , drop = FALSE]
-      meta_df <- meta_df[keep, , drop = FALSE]
+
+      # meta_df can drift from mat row count when integration keys collapse/expand
+      if (nrow(meta_df) == nrow(keep)) {
+        meta_df <- meta_df[keep, , drop = FALSE]
+      } else {
+        n_align <- min(nrow(meta_df), nrow(mat))
+        if (n_align < 1) next
+        mat <- mat[seq_len(n_align), , drop = FALSE]
+        meta_df <- meta_df[seq_len(n_align), , drop = FALSE]
+      }
 
       # Need at least 2 rows to cluster
       if (nrow(mat) < 2) next
 
-      unique_id <- make_unique_id(meta_df, mat, datatype)
+      unique_id <- coerce_unique_id(meta_df, mat, datatype, tbl_name = tbl_name)
       rownames(mat) <- unique_id
 
       k_max <- max(2L, nrow(mat) - 1L)
@@ -202,7 +242,7 @@ int_heatmap_server <- function(input, output, session, rv) {
       datatype <- x$datatype
 
       # Recompute unique_id for meta_df to match clustering ids (same function, same filtering)
-      unique_id <- make_unique_id(meta_df, x$mat_ordered, datatype)
+      unique_id <- coerce_unique_id(meta_df, x$mat_ordered, datatype, tbl_name = tbl_name)
       meta_df$unique_id <- as.character(unique_id)
 
       joined <- dplyr::inner_join(

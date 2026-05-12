@@ -8,6 +8,34 @@ processed_integration <- function(input, output, session, rv) {
         selected_tables <- input$processed_integration
         filtered_ids <- list()
         dim_info <- list()
+        species_vec <- unique(tolower(unlist(rv$species[selected_tables])))
+        cross_species_mode <- length(species_vec[!is.na(species_vec) & nzchar(species_vec)]) > 1
+
+        make_match_key <- function(df, cross_species = FALSE) {
+            gene_id <- trimws(as.character(df$Gene_ID))
+            gene_name <- tolower(trimws(as.character(df$Gene_Name)))
+            xid <- tolower(trimws(as.character(df$XID)))
+
+            gene_id[is.na(gene_id)] <- ""
+            gene_name[is.na(gene_name)] <- ""
+            xid[is.na(xid)] <- ""
+
+            if (cross_species) {
+                # Cross-species: prefer orthology/xref, then case-insensitive gene symbol.
+                dplyr::case_when(
+                    nzchar(xid) ~ paste0("xid:", xid),
+                    nzchar(gene_name) ~ paste0("gn:", gene_name),
+                    TRUE ~ paste0("gid:", tolower(gene_id))
+                )
+            } else {
+                # Same-species: keep original behavior preference (Gene_ID first).
+                dplyr::case_when(
+                    nzchar(gene_id) ~ paste0("gid:", tolower(gene_id)),
+                    nzchar(xid) ~ paste0("xid:", xid),
+                    TRUE ~ paste0("gn:", gene_name)
+                )
+            }
+        }
 
         extract_features <- function(dep, datatype, contrast) {
             rd <- as.data.frame(SummarizedExperiment::rowData(dep))
@@ -19,6 +47,11 @@ processed_integration <- function(input, output, session, rv) {
             } else {
                 rd <- as.data.frame(SummarizedExperiment::rowData(dep))
             }
+
+            if (!"XID" %in% colnames(rd)) {
+                rd$XID <- NA_character_
+            }
+
             rownames(rd) <- NULL
             rd <- rd %>%
                 dplyr::select(where(~ !is.numeric(.)), where(is.numeric)) %>%
@@ -32,7 +65,9 @@ processed_integration <- function(input, output, session, rv) {
             }
 
             rd <- rd |>
-                dplyr::transmute(Gene_ID, Gene_Name, diff = .data[[lfc_col]], p.adj = .data[[padj_col]])
+                dplyr::transmute(Gene_ID, Gene_Name, XID, diff = .data[[lfc_col]], p.adj = .data[[padj_col]])
+
+            rd$Match_Key <- make_match_key(rd, cross_species = cross_species_mode)
             # message("Extracted features for ", datatype, ": ", nrow(rd), " rows\n COLS: ", paste(colnames(rd), collapse = ", "), "\nHEAD: ", head(rd, n = 3))
             rd
         }
@@ -96,19 +131,25 @@ processed_integration <- function(input, output, session, rv) {
             if (methods::is(sig, "DEGdata")) {
                 df <- as.data.frame(sig@test_result)
                 df$id_name <- rownames(df)
-                # Rownames are format ENDARG000001_slc01
-                # Handle cases where there might not be an underscore
-                df$Gene_Name <- str_split_fixed(df$id_name, "_", 2)[,1]
-                df$Gene_ID   <- str_split_fixed(df$id_name, "_", 2)[,2]
+                # Rownames are expected as <Gene_Name>_<Gene_ID>; split on LAST underscore
+                df$Gene_Name <- sub("_[^_]+$", "", df$id_name)
+                df$Gene_ID   <- sub("^.*_", "", df$id_name)
                 df$XID <- "" # There are no XID in rnaseq data
                 df <- cbind(df, mat)
             } else {
                 df <- cbind(as.data.frame(SummarizedExperiment::rowData(sig)), mat)  
-            }      
-            mat <- mat[which(df$Gene_ID %in% cids), , drop = FALSE]
+            }
+
+            if (!"XID" %in% colnames(df)) {
+                df$XID <- NA_character_
+            }
+            df$Match_Key <- make_match_key(df, cross_species = cross_species_mode)
+
+            keep_idx <- which(df$Match_Key %in% cids)
+            mat <- mat[keep_idx, , drop = FALSE]
             # If assay is NULL or empty, exit early
             mat <- as.matrix(mat)
-            df_filt <- df[which(df$Gene_ID %in% cids), , drop = FALSE]
+            df_filt <- df[keep_idx, , drop = FALSE]
             rownames(mat) <- paste0(df_filt$Gene_ID, "_", df_filt$Gene_Name)
             if (is.null(mat) || length(mat) == 0L) {
                 return(list(mat = NULL, mat_scaled = NULL))
@@ -126,12 +167,15 @@ processed_integration <- function(input, output, session, rv) {
             if (methods::is(dep, "DEGdata")) {
                 res <- as.data.frame(dep@test_result) 
                 res$id_name <- rownames(res)
-                # Rownames are format ENDARG000001_slc01
-                res$Gene_Name <- str_split_fixed(res$id_name, "_", 2)[,1]
-                res$Gene_ID   <- str_split_fixed(res$id_name, "_", 2)[,2]
+                # Rownames are expected as <Gene_Name>_<Gene_ID>; split on LAST underscore
+                res$Gene_Name <- sub("_[^_]+$", "", res$id_name)
+                res$Gene_ID   <- sub("^.*_", "", res$id_name)
                 res$XID <- "" # There are no XID in rnaseq data
             } else {
                 res <- as.data.frame(SummarizedExperiment::rowData(dep))
+            }
+            if (!"XID" %in% colnames(res)) {
+                res$XID <- NA_character_
             }
             return(res)
         }
@@ -141,9 +185,9 @@ processed_integration <- function(input, output, session, rv) {
             if (methods::is(dep, "DEGdata")) {
                 df <- as.data.frame(dep@test_result)
                 df$id_name <- rownames(df)
-                # Rownames are format ENDARG000001_slc01
-                df$Gene_Name <- str_split_fixed(df$id_name, "_", 2)[,1]
-                df$Gene_ID   <- str_split_fixed(df$id_name, "_", 2)[,2]
+                # Rownames are expected as <Gene_Name>_<Gene_ID>; split on LAST underscore
+                df$Gene_Name <- sub("_[^_]+$", "", df$id_name)
+                df$Gene_ID   <- sub("^.*_", "", df$id_name)
                 df$XID <- "" # There are no XID in rnaseq data
             } else {
                 df <- as.data.frame(SummarizedExperiment::rowData(dep))
@@ -157,7 +201,11 @@ processed_integration <- function(input, output, session, rv) {
             if("Protein_ID" %in% colnames(df)) {
                 mat$Protein_ID <- df$Protein_ID
             }
-            mat$XID <- df$XID
+            if ("XID" %in% colnames(df)) {
+                mat$XID <- df$XID
+            } else {
+                mat$XID <- NA_character_
+            }
             return(mat)
         }
 
@@ -171,14 +219,15 @@ processed_integration <- function(input, output, session, rv) {
             feats <- extract_features(dep, datatype, contrast)            
             keep <- with(
                 feats,
-                !is.na(Gene_ID) &
+                !is.na(Match_Key) &
+                    nzchar(Match_Key) &
                     !is.na(diff) &
                     !is.na(p.adj) &
                     abs(diff) >= input$lfc_thresh_pi &
                     p.adj <= input$pval_thresh_pi
             )
 
-            filtered_ids[[tbl]] <- unique(feats$Gene_ID[keep])
+            filtered_ids[[tbl]] <- unique(feats$Match_Key[keep])
 
             dim_info[[tbl]] <- list(
                 original   = dim(SummarizedExperiment::assay(dep)),
@@ -206,10 +255,13 @@ processed_integration <- function(input, output, session, rv) {
 
             res <- get_df_from_dep(dep)
             mat <- get_matrix_from_dep(dep)
-            dep_flt <- res[res$Gene_ID %in% common_ids | res$XID %in% common_ids, ]  
-            mat_flt <- mat[mat$Gene_ID %in% common_ids | mat$XID %in% common_ids, ] 
+            res$Match_Key <- make_match_key(res, cross_species = cross_species_mode)
+            mat$Match_Key <- make_match_key(mat, cross_species = cross_species_mode)
 
-            join_keys <- "Gene_ID"
+            dep_flt <- res[res$Match_Key %in% common_ids, ]
+            mat_flt <- mat[mat$Match_Key %in% common_ids, ]
+
+            join_keys <- "Match_Key"
             
             if ("pepG" %in% colnames(mat_flt) && "pepG" %in% colnames(dep_flt)) {
                 join_keys <- c(join_keys, "pepG")
@@ -265,12 +317,17 @@ processed_integration <- function(input, output, session, rv) {
             datatype <- rv$datatype[[tbl]]
             feats <- extract_features(dep, datatype, contrast)
             #message("Features for scatter from ", tbl, ": ", nrow(feats), " rows\n COLS: ", paste(colnames(feats), collapse = ", "), "\nHEAD: ", head(feats$Gene_ID, n = 3))
-            feats <- feats[feats$Gene_ID %in% common_ids, ]
+            feats <- feats[feats$Match_Key %in% common_ids, ]
             feats <- feats |>
-                dplyr::select(Gene_ID, Gene_Name, diff) |>
+                dplyr::select(Match_Key, Gene_Name, diff) |>
                 dplyr::rename(!!paste0("LFC_", tbl) := diff)
 
-            scatter_data <- if (is.null(scatter_data)) feats else dplyr::full_join(scatter_data, feats, by = c("Gene_ID", "Gene_Name"))
+            if (is.null(scatter_data)) {
+                scatter_data <- feats
+            } else {
+                feats_small <- feats |> dplyr::select(Match_Key, !!paste0("LFC_", tbl))
+                scatter_data <- dplyr::full_join(scatter_data, feats_small, by = "Match_Key")
+            }
         }
 
         incProgress(0.1, detail = "Building scatter plots")
