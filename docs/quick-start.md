@@ -1,6 +1,6 @@
 # Quick Start
 
-This page gets you from opening BRIDGE to generating one successful plot.
+This page gets you from opening BRIDGE to generating a successful plot.
 
 Goal:
 

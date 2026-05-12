@@ -5,21 +5,24 @@ theme:
 
 nav:
   - Home: index.md
-  - Quick Start: quick-start.md
-  - Introduction: intro.md
+  - Getting Started:
+      - Quick Start: quick-start.md
+      - Introduction: intro.md
+      - Installation: installation.md
+      - Data Requirements: data-requirements.md
+      - Database Generation: database-generation.md
+      - Loading Data: loading-data.md
+      - Examples: examples.md
   - Methodology: methodology.md
-  - Installation: installation.md
-  - Data Requirements: data-requirements.md
-  - Database Generation: database-generation.md
-  - Examples: examples.md
-  - Loading Data: loading-data.md
-  - Individual Exploration: individual-exploration.md
-  - Raw Heatmap: raw-heatmap.md
-  - DE Heatmap: de-heatmap.md
-  - Volcano Plot: volcano-plot.md
-  - Gene Expression: gene-expression.md
-  - Enrichment Analysis: enrichment-analysis.md
-  - PCA: pca.md
-  - Raw Integration: raw-integration.md
-  - Processed Integration: processed-integration.md
-  - FAQ: faq.md
+  - Analysis Modules:
+      - Individual Exploration: individual-exploration.md
+      - PCA: pca.md
+      - Raw Heatmap: raw-heatmap.md
+      - DE Heatmap: de-heatmap.md
+      - Volcano Plot: volcano-plot.md
+      - Gene Expression: gene-expression.md
+      - Enrichment Analysis: enrichment-analysis.md
+  - Integration:
+      - Raw Integration: raw-integration.md
+      - Processed Integration: processed-integration.md
+  - FAQs: faq.md
