@@ -32,6 +32,32 @@ docker run -d --rm --name bridge -p 3838:3838 --mount type=bind,src=${YOUR_DATAB
 replacing ${YOUR_DATABASE} with the full path to a database of your choice.
 You can use the test database ![here](https://bridge.imp.ac.at) to get a first impression of the app.
 
+### Configure async workers (Docker / infrastructure tuning)
+
+BRIDGE uses asynchronous workers for heavy tasks (e.g. some heatmaps, volcano, PCA, enrichment).
+
+By default, BRIDGE uses a conservative cap of 2 workers. You can override this at runtime:
+
+```bash
+docker run -d --rm --name bridge \
+  -p 3838:3838 \
+  -e BRIDGE_FUTURE_WORKERS=4 \
+  -e BRIDGE_FUTURE_MAX_WORKERS=4 \
+  --mount type=bind,src=${YOUR_DATABASE},dst=/srv/data/database.db \
+  ghcr.io/paulilab/bridge:latest
+```
+
+Optional backend selection:
+
+```bash
+-e BRIDGE_FUTURE_BACKEND=multisession
+```
+
+Recommended starting point:
+- start with 2 workers
+- increase to 3-4 on larger machines if multiple users run heavy analyses concurrently
+- beyond that, gains may plateau because not all app workflows are parallelized
+
 ## Installation
 
 In order to download and start using bridge there are some previous steps to be done, like setting the environment and creating the database.
@@ -165,6 +191,17 @@ Now, the user already has all the files and libraries as well as the database, s
 ```bash
 Rscript /BRIDGE/app.R user_database.db
 ```
+
+You can also configure async execution from command line flags:
+
+```bash
+Rscript /BRIDGE/app.R --workers=4 --max-workers=4 --backend=multisession user_database.db 3838
+```
+
+Flags:
+- `--workers=<n>`: requested worker count
+- `--max-workers=<n>`: upper cap for workers (default is 2)
+- `--backend=<auto|multisession|callr>`: async backend
 
 After the execution the app will be open, copy the `url` to your browser and start using BRIDGE!
 

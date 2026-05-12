@@ -144,13 +144,6 @@ server_function <- function(input, output, session, db_path) {
 
     # Server side of loading the data, selecting the desired columns
     shiny::observeEvent(input$load_data, {
-        showModal(modalDialog(
-            title = "Loading",
-            "Please wait, loading table from cache or running analysis ...",
-            footer = NULL,
-            easyClose = FALSE
-        ))
-
         extract_valid_contrasts <- function(dep_obj) {
             rd_names <- character(0)
 
@@ -169,12 +162,13 @@ server_function <- function(input, output, session, db_path) {
         }
 
         tryCatch({
+            shiny::withProgress(message = "Loading and processing dataset", value = 0, {
             shiny::req(input$selected_table, input$datapoints_selected, input$annotation_table)
 
+            shiny::incProgress(0.1, detail = "Reading metadata")
             meta <- table_metadata()
             annotation <- annotation_metadata()
             if (is.null(meta)) {
-                removeModal()
                 return()
             }
 
@@ -182,11 +176,13 @@ server_function <- function(input, output, session, db_path) {
             id_cols <- trimws(unlist(strsplit(meta$identifier_columns, ",")))
             datapoint_cols <- trimws(input$datapoints_selected)
 
+            shiny::incProgress(0.2, detail = "Querying selected table")
             safe_cols <- sprintf('"%s"', unique(c(id_cols, datapoint_cols)))
             col_string <- paste(safe_cols, collapse = ", ")
             query <- sprintf("SELECT %s FROM %s", col_string, input$selected_table)
             new_data <- DBI::dbGetQuery(con, query)
 
+            shiny::incProgress(0.15, detail = "Loading annotation")
             annotation_data <- DBI::dbGetQuery(con, annotation)
             table_id <- input$selected_table
 
@@ -213,6 +209,7 @@ server_function <- function(input, output, session, db_path) {
                 rv$heatmap_state[[table_id]] <- NULL
             }
 
+            shiny::incProgress(0.15, detail = "Updating app state")
             rv$tables[[table_id]] <- new_data
             matrix_data <- new_data[, datapoint_cols, drop = FALSE]
             rv$ht_matrix[[table_id]] <- as.matrix(matrix_data)
@@ -228,6 +225,7 @@ server_function <- function(input, output, session, db_path) {
 
             cache_key <- paste(table_id, paste(rv$data_cols[[table_id]], collapse = "_"), "dep", sep = "_")
 
+            shiny::incProgress(0.3, detail = "Preparing processed object")
             if (cache$exists(cache_key)) {
                 dep_output <- cache$get(cache_key)
             } else {
@@ -243,13 +241,13 @@ server_function <- function(input, output, session, db_path) {
                 cache$set(cache_key, dep_output)
             }
 
+            shiny::incProgress(0.1, detail = "Finalizing")
             valid_contrasts <- extract_valid_contrasts(dep_output)
             rv$dep_output[[table_id]] <- dep_output
             rv$contrasts[[table_id]] <- valid_contrasts
 
-            removeModal()
+            })
         }, error = function(e) {
-            removeModal()
             showNotification(
                 paste("Failed to load data:", conditionMessage(e)),
                 type = "error",
@@ -463,7 +461,7 @@ server_function <- function(input, output, session, db_path) {
                 wired$datapoints <- union(wired$datapoints, tbl)
             }
             if (!(tbl %in% wired$raw) && !is.null(rv$tables[[tbl]])) {
-                RawHeatmapServer(paste0("RawHeatmap_", tbl), rv, tbl)
+                RawHeatmapServer(paste0("RawHeatmap_", tbl), rv, tbl, cache)
                 wired$raw <- union(wired$raw, tbl)
             }
 

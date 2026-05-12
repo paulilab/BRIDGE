@@ -20,8 +20,6 @@ ui <- shinydashboard::dashboardPage(
         )
     ),
     shinydashboard::dashboardBody(
-        # Busy message overlay
-        shinybusy::add_busy_spinner(spin = "radar", position = "bottom-right", timeout = 200),
         # Custom font styling for the dashboard title
         shiny::tags$head(
             shiny::tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/css?family=Inknut+Antiqua"),

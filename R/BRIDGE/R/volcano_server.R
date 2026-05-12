@@ -161,16 +161,22 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
                 )
                 rv$current_dep_volcano_key[[tbl_name]] <- key
 
-                if (!cache$exists(key)) {
-                    volcano_task$invoke(list(
-                        dep_output   = params$dep_output,
-                        p_cut        = params$p_cut,
-                        lfc_cut      = params$lfc_cut,
-                        highlight    = params$highlight,
-                        contrast     = params$contrast,
-                        datatype     = params$datatype
-                    ))
-                }
+                shiny::withProgress(message = "Computing volcano plot", value = 0, {
+                    shiny::incProgress(0.2, detail = "Filtering data")
+                    if (!cache$exists(key)) {
+                        shiny::incProgress(0.6, detail = "Building plot")
+                        volcano_task$invoke(list(
+                            dep_output   = params$dep_output,
+                            p_cut        = params$p_cut,
+                            lfc_cut      = params$lfc_cut,
+                            highlight    = params$highlight,
+                            contrast     = params$contrast,
+                            datatype     = params$datatype
+                        ))
+                    } else {
+                        shiny::incProgress(0.8, detail = "Using cached result")
+                    }
+                })
             },
             ignoreInit = TRUE
         )
@@ -179,10 +185,7 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
             if (!volcano_ready()) {
                 return(div(style = "padding:10px; color:#777;", "Click “Compute Volcano” to generate the plot."))
             }
-            shinycssloaders::withSpinner(
-                plotly::plotlyOutput(session$ns("volcano"), height = "520px"),
-                type = 8, color = "#2b8cbe", caption = "Loading..."
-            )
+            plotly::plotlyOutput(session$ns("volcano"), height = "520px")
         })
 
         output$volcano <- plotly::renderPlotly({

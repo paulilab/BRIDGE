@@ -18,9 +18,10 @@ heatmap_server <- function(id, rv) {
 }
 
 #' @export
-RawHeatmapServer <- function(id, rv, tbl_name) {
+RawHeatmapServer <- function(id, rv, tbl_name, cache = NULL) {
     moduleServer(id, function(input, output, session) {
         ready <- reactiveVal(FALSE)
+        last_res <- reactiveVal(NULL)
 
         task <- ExtendedTask$new(function(raw_input) {
             promises::future_promise({
@@ -42,11 +43,34 @@ RawHeatmapServer <- function(id, rv, tbl_name) {
 
         observeEvent(input$compute, {
             ready(TRUE)
-            task$invoke(list(
-                raw_data       = isolate(rv$tables[[tbl_name]]),
-                datapoint_cols = isolate(rv$data_cols[[tbl_name]]),
-                datatype       = isolate(rv$datatype[[tbl_name]])
-            ))
+            
+            # Generate cache key
+            cols_key <- paste(sort(trimws(isolate(rv$data_cols[[tbl_name]]))), collapse = "_")
+            key <- paste(
+                tbl_name,
+                cols_key,
+                isolate(rv$datatype[[tbl_name]]),
+                "raw_heatmap_task",
+                sep = "_"
+            )
+            
+            shiny::withProgress(message = "Computing raw heatmap", value = 0, {
+                shiny::incProgress(0.3, detail = "Reading data")
+                
+                # Check cache first
+                if (!is.null(cache) && cache$exists(key)) {
+                    shiny::incProgress(0.7, detail = "Using cached result")
+                    last_res(cache$get(key))
+                } else {
+                    shiny::incProgress(0.5, detail = "Building heatmap")
+                    task$invoke(list(
+                        raw_data       = isolate(rv$tables[[tbl_name]]),
+                        datapoint_cols = isolate(rv$data_cols[[tbl_name]]),
+                        datatype       = isolate(rv$datatype[[tbl_name]])
+                    ))
+                    shiny::incProgress(0.2, detail = "Finalizing")
+                }
+            })
         }, ignoreInit = TRUE)
 
         # Mount spinner only after "Compute" is pressed
@@ -57,16 +81,24 @@ RawHeatmapServer <- function(id, rv, tbl_name) {
                     "Click “Compute Raw Heatmap” to generate the plot."
                 ))
             }
-            shinycssloaders::withSpinner(
-                plotOutput(session$ns("plot"), height = "520px"),
-                type = 8, color = "#2b8cbe", caption = "Loading..."
-            )
+            plotOutput(session$ns("plot"), height = "520px")
         })
 
         output$plot <- renderPlot({
-            res <- task$result()
+            # Use cached result if available, otherwise get from task
+            cached_res <- last_res()
+            if (!is.null(cached_res)) {
+                res <- cached_res
+            } else {
+                res <- task$result()
+            }
             req(res)
+            
+            col_lim <- max(abs(res$clean_matrix), na.rm = TRUE)
+            if (!is.finite(col_lim) || col_lim == 0) col_lim <- 2
+            
             ComplexHeatmap::Heatmap(res$clean_matrix,
+                col = bridge_heatmap_col(col_lim),
                 show_row_dend = FALSE,
                 show_row_names = FALSE
             )
@@ -77,6 +109,25 @@ RawHeatmapServer <- function(id, rv, tbl_name) {
             plot_download_controls(session$ns, "raw_ht")
         })
 
+        # Store task result in cache if available
+        observe({
+            res <- task$result()
+            if (!is.null(res) && !is.null(cache)) {
+                cols_key <- paste(sort(trimws(isolate(rv$data_cols[[tbl_name]]))), collapse = "_")
+                key <- paste(
+                    tbl_name,
+                    cols_key,
+                    isolate(rv$datatype[[tbl_name]]),
+                    "raw_heatmap_task",
+                    sep = "_"
+                )
+                if (!cache$exists(key)) {
+                    cache$set(key, res)
+                }
+                last_res(res)
+            }
+        })
+        
         register_plot_download(
             input = input,
             output = output,
@@ -84,7 +135,12 @@ RawHeatmapServer <- function(id, rv, tbl_name) {
             id_prefix = "raw_ht",
             filename_prefix = paste0("raw_heatmap_", tbl_name),
             plot_fun = function() {
-                res <- task$result()
+                cached_res <- last_res()
+                if (!is.null(cached_res)) {
+                    res <- cached_res
+                } else {
+                    res <- task$result()
+                }
                 req(res)
                 col_lim <- max(abs(res$clean_matrix), na.rm = TRUE)
                 if (!is.finite(col_lim) || col_lim == 0) col_lim <- 2
@@ -346,14 +402,21 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
             )
             rv$current_dep_heatmap_key[[tbl_name]] <- key
 
-            if (!cache$exists(key)) {
-                heatmap_task$invoke(list(
-                    dep_output = params$dep_output,
-                    p_cut      = params$p_cut,
-                    lfc_cut    = params$lfc_cut,
-                    datatype   = params$datatype
-                ))
-            }
+            shiny::withProgress(message = "Computing DE heatmap", value = 0, {
+                shiny::incProgress(0.15, detail = "Filtering significant genes")
+                if (!cache$exists(key)) {
+                    shiny::incProgress(0.6, detail = "Running clustering")
+                    heatmap_task$invoke(list(
+                        dep_output = params$dep_output,
+                        p_cut      = params$p_cut,
+                        lfc_cut    = params$lfc_cut,
+                        datatype   = params$datatype
+                    ))
+                    shiny::incProgress(0.25, detail = "Building plot")
+                } else {
+                    shiny::incProgress(0.85, detail = "Using cached result")
+                }
+            })
 
             # No prewarming of depflt cache anymore
             #depflt_key <- paste(
@@ -410,10 +473,7 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
                     "Choose settings and click \"Compute heatmap\"."
                 ))
             }
-            shinycssloaders::withSpinner(
-                plotOutput(session$ns("ht"), height = "800px", width = "100%"),
-                type = 8, color = "#2b8cbe", caption = "Loading..."
-            )
+            plotOutput(session$ns("ht"), height = "800px", width = "100%")
         })
 
 

@@ -1,10 +1,12 @@
 #' @export
 raw_integration <- function(input, output, session, rv, combined_data) {
     shiny::observeEvent(input$integrate_data, {
+        shiny::withProgress(message = "Integrating raw datasets", value = 0, {
         shiny::req(length(input$integration) > 0)
         selected_tables <- input$integration
         selected_types <- sapply(selected_tables, function(tbl) rv$datatype[[tbl]])
 
+        shiny::incProgress(0.15, detail = "Collecting selected columns")
         # Extract selected columns
         selected_lists <- lapply(selected_tables, function(tbl) input[[paste0("cols_selected_int", tbl)]])
 
@@ -19,6 +21,8 @@ raw_integration <- function(input, output, session, rv, combined_data) {
         reference_data_names <- unique(unlist(selected_lists))
         tables_to_join <- list()
         dataset_columns <- list()  # Track which columns belong to which dataset
+
+        step_n <- length(selected_tables)
 
         for (i in seq_along(selected_tables)) {
             tbl <- selected_tables[[i]]
@@ -58,15 +62,20 @@ raw_integration <- function(input, output, session, rv, combined_data) {
             df <- df[, c(all_id_names, data_cols_order), drop = FALSE]
             df$source <- tbl
             tables_to_join[[tbl]] <- df
+
+            shiny::incProgress(0.65 / max(1, step_n), detail = paste("Processed", tbl))
         }
 
+        shiny::incProgress(0.15, detail = "Combining datasets")
         # Combine all
         combined_df <- dplyr::bind_rows(tables_to_join) %>% dplyr::select(where(~ !is.numeric(.)), where(is.numeric))
         combined_data(combined_df)
         rv$integration_reference_cols <- reference_data_names
         rv$integration_dataset_columns <- dataset_columns  # Store dataset->columns mapping
 
+        shiny::incProgress(0.05, detail = "Updating gene selector")
         # Update search box
         updateSelectizeInput(session, "search_gene_integration", choices = sort(unique(gsub("_.*", "", combined_df$unique_id))), server = TRUE)
+        })
     })
 }

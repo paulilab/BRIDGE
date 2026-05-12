@@ -3,6 +3,8 @@ processed_integration <- function(input, output, session, rv) {
     observeEvent(input$process_integrate_data, {
         req(input$processed_integration, input$heatmap_k)
 
+        withProgress(message = "Running processed integration", value = 0, {
+
         selected_tables <- input$processed_integration
         filtered_ids <- list()
         dim_info <- list()
@@ -159,6 +161,7 @@ processed_integration <- function(input, output, session, rv) {
             return(mat)
         }
 
+        incProgress(0.1, detail = "Filtering significant features")
         # Filter each table by thresholds
         for (tbl in selected_tables) {
             contrast <- input[[paste0("pi_comparison_selected_", tbl)]]
@@ -181,8 +184,10 @@ processed_integration <- function(input, output, session, rv) {
                 original   = dim(SummarizedExperiment::assay(dep)),
                 filtered   = c(length(filtered_ids[[tbl]]), ncol(SummarizedExperiment::assay(dep)))
             )
+            incProgress(0.2 / max(1, length(selected_tables)), detail = paste("Filtered", tbl))
         }
 
+        incProgress(0.1, detail = "Intersecting feature IDs")
         # Intersect IDs
         common_ids <- Reduce(intersect, filtered_ids)
         if (length(common_ids) < input$heatmap_k) {
@@ -194,6 +199,7 @@ processed_integration <- function(input, output, session, rv) {
             }
         }
 
+        incProgress(0.15, detail = "Building intersected tables")
         # Subset SummarizedExperiment::assays by intersected gene names
         intersected_list <- lapply(selected_tables, function(tbl) {
             dep <- rv$dep_output[[tbl]]
@@ -227,6 +233,7 @@ processed_integration <- function(input, output, session, rv) {
 
         names(intersected_list) <- selected_tables
 
+        incProgress(0.15, detail = "Extracting intersected matrices")
         # Extract intersected expression matrices per table
         intersected_matrix <- lapply(selected_tables, function(tbl) {
             dep <- rv$dep_output[[tbl]]
@@ -249,6 +256,7 @@ processed_integration <- function(input, output, session, rv) {
             dim_info[[tbl]]$intersected <- dim(intersected_matrix[[tbl]])
         }
 
+        incProgress(0.1, detail = "Preparing scatter data")
         # Prepare scatter data: wide table by Gene_ID
         scatter_data <- NULL
         for (tbl in selected_tables) {
@@ -265,6 +273,7 @@ processed_integration <- function(input, output, session, rv) {
             scatter_data <- if (is.null(scatter_data)) feats else dplyr::full_join(scatter_data, feats, by = c("Gene_ID", "Gene_Name"))
         }
 
+        incProgress(0.1, detail = "Building scatter plots")
         # Build pairwise scatterplots
         lfc_cols <- grep("^LFC_", names(scatter_data), value = TRUE)
         plot_list <- list()
@@ -300,6 +309,7 @@ processed_integration <- function(input, output, session, rv) {
             dim_info[[tbl]]$intersected[1]
         }), collapse = " x "), " intersected rows.\n")
 
+        incProgress(0.1, detail = "Saving results")
         # Save results
         rv$scatter_plots <- plot_list
         rv$intersected_tables_processed <- intersected_list
@@ -330,6 +340,10 @@ processed_integration <- function(input, output, session, rv) {
             optimal_k <- safe_nbclust(stacked, k_min = 2, k_max = 10)
         }
         rv$optimal_k <- ifelse(is.na(optimal_k), NULL, optimal_k)
+
+        incProgress(0.1, detail = "Done")
+
+        })
 
     })
 }

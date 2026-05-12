@@ -26,10 +26,7 @@ pcaUI <- function(id, tbl_name) {
             column(4, uiOutput(ns("pc_axes_ui"))),
             column(4, uiOutput(ns("plot_download_ui")))
         ),
-        shinycssloaders::withSpinner(
-            plotOutput(ns("plot"), height = "480px"),
-            type = 8, color = "#2b8cbe", caption = "Loading..."
-        ),
+        plotOutput(ns("plot"), height = "480px"),
         h5(),
         shinydashboard::box(
             title = "PCA loadings", width = 12, solidHeader = TRUE,

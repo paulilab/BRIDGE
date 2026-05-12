@@ -44,6 +44,8 @@ RUN chown shiny:shiny /var/lib/shiny-server \
 
 ENV BRIDGE_PORT=3838
 ENV BRIDGE_DB_PATH=/srv/data/database.db
+ENV BRIDGE_FUTURE_BACKEND=auto
+ENV BRIDGE_FUTURE_MAX_WORKERS=2
 RUN touch /srv/data/database.db && chown -R shiny:shiny /srv/data && chmod -R 775 /srv/data/database.db
 ADD --chown=shiny:shiny ./app.R /srv/shiny-server/app.R
 

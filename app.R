@@ -28,19 +28,68 @@ suppressPackageStartupMessages({
 # library(shinyWidgets)
 ht_opt$message <- FALSE
 
-configure_future_backend <- function() {
-    backend <- tolower(Sys.getenv("BRIDGE_FUTURE_BACKEND", "auto"))
-    workers_env <- suppressWarnings(as.integer(Sys.getenv("BRIDGE_FUTURE_WORKERS", NA)))
-    max_workers <- 2L
+parse_cli_args <- function() {
+    args <- commandArgs(trailingOnly = TRUE)
+    opts <- list()
+    positional <- character(0)
+
+    for (arg in args) {
+        if (startsWith(arg, "--")) {
+            kv <- strsplit(sub("^--", "", arg), "=", fixed = TRUE)[[1]]
+            key <- kv[[1]]
+            value <- if (length(kv) > 1) paste(kv[-1], collapse = "=") else "true"
+            opts[[key]] <- value
+        } else {
+            positional <- c(positional, arg)
+        }
+    }
+
+    list(options = opts, positional = positional)
+}
+
+cli_args <- parse_cli_args()
+
+safe_int_or_na <- function(x) {
+    val <- suppressWarnings(as.integer(x))
+    if (length(val) < 1L || is.na(val[[1]])) return(NA_integer_)
+    val[[1]]
+}
+
+configure_future_backend <- function(cli_options = list()) {
+    backend_cli <- cli_options[["backend"]]
+    workers_cli <- safe_int_or_na(cli_options[["workers"]])
+    max_workers_cli <- safe_int_or_na(cli_options[["max-workers"]])
+
+    backend <- tolower(if (!is.null(backend_cli) && nzchar(backend_cli)) {
+        backend_cli
+    } else {
+        Sys.getenv("BRIDGE_FUTURE_BACKEND", "auto")
+    })
+
+    workers_env <- safe_int_or_na(Sys.getenv("BRIDGE_FUTURE_WORKERS", NA))
+    max_workers_env <- safe_int_or_na(Sys.getenv("BRIDGE_FUTURE_MAX_WORKERS", NA))
+    max_workers <- if (!is.na(max_workers_cli) && max_workers_cli >= 1L) {
+        max_workers_cli
+    } else if (!is.na(max_workers_env) && max_workers_env >= 1L) {
+        max_workers_env
+    } else {
+        2L
+    }
 
     auto_workers <- min(max_workers, max(1L, future::availableCores() - 1L))
-    workers_raw <- if (!is.na(workers_env) && workers_env >= 1L) workers_env else auto_workers
+    workers_raw <- if (!is.na(workers_cli) && workers_cli >= 1L) {
+        workers_cli
+    } else if (!is.na(workers_env) && workers_env >= 1L) {
+        workers_env
+    } else {
+        auto_workers
+    }
     workers <- min(max_workers, max(1L, workers_raw))
 
-    if (!is.na(workers_env) && workers_env > max_workers) {
+    if (!is.na(workers_raw) && workers_raw > max_workers) {
         warning(sprintf(
-            "BRIDGE_FUTURE_WORKERS=%d exceeds hard cap %d; using %d.",
-            workers_env, max_workers, workers
+            "Requested workers=%d exceeds hard cap %d; using %d.",
+            workers_raw, max_workers, workers
         ))
     }
 
@@ -82,7 +131,7 @@ configure_future_backend <- function() {
     invisible(list(backend = "callr", workers = workers))
 }
 
-future_cfg <- configure_future_backend()
+future_cfg <- configure_future_backend(cli_args$options)
 message(sprintf("BRIDGE async backend: %s (%d worker%s)",
     future_cfg$backend,
     future_cfg$workers,
@@ -102,7 +151,7 @@ get_db_path <- function() {
     # 3. If interactive, prompt user
     if (interactive()) return(file.choose())
     # 4. If command line, use first argument
-    args <- commandArgs(trailingOnly = TRUE)
+    args <- cli_args$positional
     if (length(args) > 0 && file.exists(args[1])) return(args[1])
     stop("No valid database path found.")
 }
@@ -114,7 +163,7 @@ get_port <- function() {
     port_env <- Sys.getenv("BRIDGE_PORT", unset = NA)
     if (!is.na(port_env) && nzchar(port_env)) return(as.integer(port_env))
     # 2. Try command line argument
-    args <- commandArgs(trailingOnly = TRUE)
+    args <- cli_args$positional
     if (length(args) > 1 && !is.na(as.integer(args[2]))) return(as.integer(args[2]))
     # 3. Default
     return(3838L)

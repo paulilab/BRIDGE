@@ -87,12 +87,18 @@ pcaServer <- function(id, rv, cache, tbl_name) {
                     colnames(mat)
                 }
 
-                if (!is.null(cache) && cache$exists(key)) {
-                    pca_result_cache(cache$get(key))
-                } else {
-                    pca_result_cache(NULL)
-                    pca_task$invoke(mat, grp, n_top)
-                }
+                shiny::withProgress(message = "Computing PCA", value = 0, {
+                    shiny::incProgress(0.2, detail = "Selecting top features")
+                    if (!is.null(cache) && cache$exists(key)) {
+                        shiny::incProgress(0.8, detail = "Using cached result")
+                        pca_result_cache(cache$get(key))
+                    } else {
+                        shiny::incProgress(0.6, detail = "Computing decomposition")
+                        pca_result_cache(NULL)
+                        pca_task$invoke(mat, grp, n_top)
+                        shiny::incProgress(0.2, detail = "Caching result")
+                    }
+                })
                 loadings_cache(NULL)
             },
             ignoreInit = TRUE
