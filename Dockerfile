@@ -36,7 +36,7 @@ RUN --mount=type=cache,target=/root/.cache/R/renv \
     R -e "Sys.setenv(GITHUB_PAT=readLines('/run/secrets/github_pat'));renv::restore()"
 
 COPY R/BRIDGE /packages/R/BRIDGE
-RUN R -e "remotes::install_local('/packages/R/BRIDGE', dependencies = FALSE)" 
+RUN R CMD INSTALL /packages/R/BRIDGE 
 
 RUN chown shiny:shiny /var/lib/shiny-server \ 
     && rm -rf /srv/shiny-server/* \
