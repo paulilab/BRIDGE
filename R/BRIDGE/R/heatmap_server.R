@@ -94,7 +94,16 @@ RawHeatmapServer <- function(id, rv, tbl_name, cache = NULL) {
             }
             req(res)
             
-            col_lim <- max(abs(res$clean_matrix), na.rm = TRUE)
+            data_min <- min(res$clean_matrix, na.rm = TRUE)
+            data_max <- max(res$clean_matrix, na.rm = TRUE)
+            # Use symmetric scale only if data spans both positive and negative
+            if (data_min < 0 && data_max > 0) {
+                col_lim <- max(abs(data_max), abs(data_min))
+            } else if (data_min >= 0) {
+                col_lim <- data_max
+            } else {
+                col_lim <- abs(data_min)
+            }
             if (!is.finite(col_lim) || col_lim == 0) col_lim <- 2
             
             ComplexHeatmap::Heatmap(res$clean_matrix,
@@ -142,7 +151,16 @@ RawHeatmapServer <- function(id, rv, tbl_name, cache = NULL) {
                     res <- task$result()
                 }
                 req(res)
-                col_lim <- max(abs(res$clean_matrix), na.rm = TRUE)
+                data_min <- min(res$clean_matrix, na.rm = TRUE)
+                data_max <- max(res$clean_matrix, na.rm = TRUE)
+                # Use symmetric scale only if data spans both positive and negative
+                if (data_min < 0 && data_max > 0) {
+                    col_lim <- max(abs(data_max), abs(data_min))
+                } else if (data_min >= 0) {
+                    col_lim <- data_max
+                } else {
+                    col_lim <- abs(data_min)
+                }
                 if (!is.finite(col_lim) || col_lim == 0) col_lim <- 2
                 ComplexHeatmap::Heatmap(res$clean_matrix,
                     col = bridge_heatmap_col(col_lim),
