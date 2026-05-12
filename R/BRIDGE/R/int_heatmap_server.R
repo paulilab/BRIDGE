@@ -1,5 +1,10 @@
 #' @export
 int_heatmap_server <- function(input, output, session, rv) {
+  fallback_notified <- shiny::reactiveVal(character(0))
+
+  shiny::observeEvent(input$process_integrate_data, {
+    fallback_notified(character(0))
+  }, ignoreInit = TRUE)
 
   output$integrated_heatmaps <- shiny::renderUI({
     shiny::req(rv$intersected_matrix_processed, input$heatmap_k)
@@ -98,7 +103,42 @@ int_heatmap_server <- function(input, output, session, rv) {
     all_meta  <- rv$intersected_tables_processed
 
     k <- suppressWarnings(as.integer(input$heatmap_k))
-    if (!is.finite(k) || k < 2) k <- 2L
+    if (length(k) < 1L || !is.finite(k[[1]]) || k[[1]] < 2L) {
+      k <- 2L
+    } else {
+      k <- as.integer(k[[1]])
+    }
+
+    safe_kmeans_cluster <- function(mat, centers) {
+      n_rows <- nrow(mat)
+      if (!is.finite(n_rows) || n_rows < 1L) {
+        return(list(cluster = integer(0), centers_used = 0L, requested = as.integer(centers)))
+      }
+
+      requested <- min(max(1L, as.integer(centers)), as.integer(n_rows))
+      c_try <- requested
+      while (c_try >= 1L) {
+        km <- tryCatch(
+          stats::kmeans(mat, centers = c_try, nstart = 10, iter.max = 100),
+          error = function(e) NULL
+        )
+        if (!is.null(km) && !is.null(km$cluster) && length(km$cluster) == n_rows) {
+          return(list(
+            cluster = as.integer(km$cluster),
+            centers_used = as.integer(c_try),
+            requested = as.integer(requested)
+          ))
+        }
+        c_try <- c_try - 1L
+      }
+
+      # Ultimate fallback: one cluster for all rows
+      list(
+        cluster = rep.int(1L, as.integer(n_rows)),
+        centers_used = 1L,
+        requested = as.integer(requested)
+      )
+    }
 
     res <- list()   # per-table results
     tbls <- intersect(names(all_mats), names(all_meta))
@@ -110,16 +150,26 @@ int_heatmap_server <- function(input, output, session, rv) {
       meta_df <- all_meta[[tbl_name]]
       datatype <- rv$datatype[[tbl_name]]
 
+      if (is.null(mat) || is.null(meta_df)) next
+
       # Make sure mat is a numeric matrix (kmeans requires numeric)
       mat <- as.matrix(mat)
+      if (length(dim(mat)) != 2L || nrow(mat) < 1L || ncol(mat) < 1L) next
       storage.mode(mat) <- "double"
 
       # Drop rows with any non-finite values (avoids kmeans hanging/failing silently)
       keep <- apply(mat, 1, function(x) all(is.finite(x)))
+      if (!length(keep)) next
       mat <- mat[keep, , drop = FALSE]
+      if (nrow(mat) < 1L) next
+
+      if (!(is.data.frame(meta_df) || is.matrix(meta_df))) {
+        meta_df <- as.data.frame(meta_df, stringsAsFactors = FALSE)
+      }
+      if (nrow(meta_df) < 1L) next
 
       # meta_df can drift from mat row count when integration keys collapse/expand
-      if (nrow(meta_df) == nrow(keep)) {
+      if (nrow(meta_df) == length(keep)) {
         meta_df <- meta_df[keep, , drop = FALSE]
       } else {
         n_align <- min(nrow(meta_df), nrow(mat))
@@ -134,13 +184,34 @@ int_heatmap_server <- function(input, output, session, rv) {
       unique_id <- coerce_unique_id(meta_df, mat, datatype, tbl_name = tbl_name)
       rownames(mat) <- unique_id
 
-      k_max <- max(2L, nrow(mat) - 1L)
-      k_use <- min(k, k_max)
-      if (k_use < 2L) next
+      # Bound requested k to valid range [1, nrow(mat)] and compute clusters safely.
+      k_requested <- as.integer(k)
+      k_bounded <- min(max(1L, k_requested), as.integer(nrow(mat)))
+      km_res <- safe_kmeans_cluster(mat, centers = k_bounded)
+      cluster_assign <- km_res$cluster
+      if (!length(cluster_assign)) next
 
-      km <- stats::kmeans(mat, centers = k_use, nstart = 10, iter.max = 100)
+      k_used <- as.integer(km_res$centers_used)
+      if (!is.finite(k_used) || k_used < 1L) k_used <- 1L
 
-      cluster_vec <- factor(km$cluster, levels = 1:k_use)
+      if (k_used < k_requested) {
+        note_key <- paste(tbl_name, nrow(mat), k_requested, k_bounded, k_used, sep = "|")
+        already <- fallback_notified()
+        if (!(note_key %in% already)) {
+          shiny::showNotification(
+            sprintf(
+              "Integrated heatmap for '%s': requested k=%d is not feasible for current data (n=%d). Using k=%d.",
+              tbl_name, k_requested, nrow(mat), k_used
+            ),
+            type = "warning",
+            duration = 8
+          )
+          fallback_notified(c(already, note_key))
+        }
+      }
+
+      present_levels <- sort(unique(as.integer(cluster_assign)))
+      cluster_vec <- factor(as.integer(cluster_assign), levels = present_levels)
       ord <- order(cluster_vec)
 
       mat_ordered <- mat[ord, , drop = FALSE]
@@ -159,7 +230,7 @@ int_heatmap_server <- function(input, output, session, rv) {
         cluster_df  = cluster_df,
         meta_df     = meta_df,     # filtered meta (same rows as mat before ordering)
         datatype    = datatype,
-        k_use       = k_use
+        k_use       = k_used
       )
     }
 

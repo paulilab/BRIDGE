@@ -265,6 +265,27 @@ server_function <- function(input, output, session, db_path) {
     clear_table_state <- function(table_id) {
         if (is.null(table_id) || !nzchar(table_id)) return(invisible(NULL))
 
+        remove_slot_entry <- function(slot_name, key) {
+            obj <- rv[[slot_name]]
+            if (is.null(obj)) return(invisible(NULL))
+
+            # list-like slots
+            if (is.list(obj)) {
+                if (!is.null(obj[[key]])) obj[[key]] <- NULL
+                rv[[slot_name]] <- obj
+                return(invisible(NULL))
+            }
+
+            # named vectors (e.g., character)
+            nms <- names(obj)
+            if (!is.null(nms) && key %in% nms) {
+                rv[[slot_name]] <- obj[nms != key]
+                return(invisible(NULL))
+            }
+
+            invisible(NULL)
+        }
+
         per_table_slots <- c(
             "tables", "ht_matrix", "id_cols", "data_cols", "datatype",
             "species", "annotation", "dep_output", "contrasts", "constrasts",
@@ -272,9 +293,7 @@ server_function <- function(input, output, session, db_path) {
         )
 
         for (slot in per_table_slots) {
-            if (!is.null(rv[[slot]]) && !is.null(rv[[slot]][[table_id]])) {
-                rv[[slot]][[table_id]] <- NULL
-            }
+            remove_slot_entry(slot, table_id)
         }
 
         if (!is.null(rv$heatmap_state) && !is.null(rv$heatmap_state[[table_id]])) {
@@ -408,6 +427,15 @@ server_function <- function(input, output, session, db_path) {
         lapply(rv$table_names, function(tbl_name) {
             dep_output <- rv$dep_output[[tbl_name]]
             df_raw <- rv$tables[[tbl_name]]
+            if (is.null(df_raw) || is.null(dep_output)) {
+                output[[paste0("table_", tbl_name)]] <- DT::renderDT({
+                    DT::datatable(data.frame(Message = "Table is being removed or not loaded."),
+                        options = list(dom = "t", ordering = FALSE, paging = FALSE, searching = FALSE),
+                        rownames = FALSE
+                    )
+                })
+                return(invisible(NULL))
+            }
             if (identical(rv$datatype[[tbl_name]], "rnaseq")){
                 df_dep <- DEP2::get_results(dep_output) %>%
                     dplyr::rename(Gene_ID = ID) %>%
