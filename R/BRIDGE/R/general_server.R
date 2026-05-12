@@ -480,7 +480,7 @@ server_function <- function(input, output, session, db_path) {
 
             # Enrichment also needs contrasts
             if (!(tbl %in% wired$enrich) && has_dep(tbl) && has_contr(tbl)) {
-                EnrichmentServer(paste0("Enrichment_", tbl), rv, tbl)
+                EnrichmentServer(paste0("Enrichment_", tbl), rv, cache, tbl)
                 wired$enrich <- union(wired$enrich, tbl)
             }
         }
