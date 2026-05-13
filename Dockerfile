@@ -49,8 +49,10 @@ ENV BRIDGE_FUTURE_MAX_WORKERS=2
 RUN touch /srv/data/database.db && chown -R shiny:shiny /srv/data && chmod -R 775 /srv/data/database.db
 ADD --chown=shiny:shiny ./app.R /srv/shiny-server/app.R
 
-EXPOSE 3838
-USER shiny
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-CMD ["R", "-e", "options(shiny.host='0.0.0.0', shiny.port=3838); shiny::runApp('/srv/shiny-server/app.R')"]
+EXPOSE 3838
+# Run entrypoint as root so it can fix bind-mount permissions before dropping to shiny
+ENTRYPOINT ["/entrypoint.sh"]
 # Build with docker build --network=host -t bridge:latest .
