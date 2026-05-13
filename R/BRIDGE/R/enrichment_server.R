@@ -303,7 +303,7 @@ EnrichmentServer <- function(id, rv, cache, tbl_name) {
                             output$enrichment <- renderUI({
                                 div(
                                     style = "padding: 20px; color: #d9534f; font-weight: bold; text-align: center;",
-                                    paste0("Enrichment failed: ", conditionMessage(e))
+                                    paste0("Enrichment failed: ", conditionMessage(e), "\nPlease consider adjusting cutoffs or checking data quality.")
                                 )
                             })
                             return(NULL)
