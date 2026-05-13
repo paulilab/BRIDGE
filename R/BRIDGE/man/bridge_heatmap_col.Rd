@@ -4,14 +4,18 @@
 \alias{bridge_heatmap_col}
 \title{Diverging heatmap color ramp (circlize)}
 \usage{
-bridge_heatmap_col(col_limit = 2, n_steps = 11)
+bridge_heatmap_col(col_limit = 2, n_steps = 11, col_min = NULL)
 }
 \arguments{
-\item{col_limit}{Numeric. Symmetric limits; the scale runs
-\code{[-col_limit, 0, col_limit]}.  Defaults to \code{2}.}
+\item{col_limit}{Numeric. Upper limit of the scale. When \code{col_min} is
+\code{NULL} the scale is symmetric: \code{[-col_limit, 0, col_limit]}.
+Defaults to \code{2}.}
 
 \item{n_steps}{Integer. Number of interpolation steps (must be odd so the
-midpoint is white).  Defaults to \code{11}.}
+midpoint is the mid colour).  Defaults to \code{11}.}
+
+\item{col_min}{Numeric. Optional lower limit. When supplied the scale runs
+\code{[col_min, mid, col_limit]} instead of being symmetric.}
 }
 \value{
 A \code{colorRamp2} function.

@@ -85,15 +85,19 @@ bridge_discrete_pal <- function(n) {
 #' Constructs a \code{circlize::colorRamp2} object for use as the \code{col}
 #' argument in \code{ComplexHeatmap::Heatmap}.
 #'
-#' @param col_limit Numeric. Symmetric limits; the scale runs
-#'   \code{[-col_limit, 0, col_limit]}.  Defaults to \code{2}.
+#' @param col_limit Numeric. Upper limit of the scale. When \code{col_min} is
+#'   \code{NULL} the scale is symmetric: \code{[-col_limit, 0, col_limit]}.
+#'   Defaults to \code{2}.
 #' @param n_steps Integer. Number of interpolation steps (must be odd so the
-#'   midpoint is white).  Defaults to \code{11}.
+#'   midpoint is the mid colour).  Defaults to \code{11}.
+#' @param col_min Numeric. Optional lower limit. When supplied the scale runs
+#'   \code{[col_min, mid, col_limit]} instead of being symmetric.
 #' @return A \code{colorRamp2} function.
 #' @export
-bridge_heatmap_col <- function(col_limit = 2, n_steps = 11) {
+bridge_heatmap_col <- function(col_limit = 2, n_steps = 11, col_min = NULL) {
     stopifnot(n_steps %% 2 == 1)
-    breaks <- seq(-col_limit, col_limit, length.out = n_steps)
+    lower <- if (is.null(col_min)) -col_limit else col_min
+    breaks <- seq(lower, col_limit, length.out = n_steps)
     mid    <- ceiling(n_steps / 2)
     colors <- c(
         grDevices::colorRampPalette(

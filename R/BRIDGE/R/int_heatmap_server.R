@@ -519,6 +519,7 @@ int_heatmap_server <- function(input, output, session, rv) {
         ComplexHeatmap::Heatmap(
           x$mat_ordered,
           name = tbl,
+          col = bridge_heatmap_col(max(abs(x$mat_ordered), na.rm = TRUE)),
           cluster_rows = FALSE,
           cluster_columns = FALSE,
           show_row_dend = FALSE,

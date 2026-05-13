@@ -96,18 +96,19 @@ RawHeatmapServer <- function(id, rv, tbl_name, cache = NULL) {
             
             data_min <- min(res$clean_matrix, na.rm = TRUE)
             data_max <- max(res$clean_matrix, na.rm = TRUE)
-            # Use symmetric scale only if data spans both positive and negative
+            if (!is.finite(data_min) || !is.finite(data_max) || data_max == data_min) {
+                data_min <- -2; data_max <- 2
+            }
+            # Symmetric diverging scale only when data spans both signs
             if (data_min < 0 && data_max > 0) {
                 col_lim <- max(abs(data_max), abs(data_min))
-            } else if (data_min >= 0) {
-                col_lim <- data_max
+                col_fun <- bridge_heatmap_col(col_lim)
             } else {
-                col_lim <- abs(data_min)
+                col_fun <- bridge_heatmap_col(data_max, col_min = data_min)
             }
-            if (!is.finite(col_lim) || col_lim == 0) col_lim <- 2
             
             ComplexHeatmap::Heatmap(res$clean_matrix,
-                col = bridge_heatmap_col(col_lim),
+                col = col_fun,
                 show_row_dend = FALSE,
                 show_row_names = FALSE
             )
@@ -153,17 +154,18 @@ RawHeatmapServer <- function(id, rv, tbl_name, cache = NULL) {
                 req(res)
                 data_min <- min(res$clean_matrix, na.rm = TRUE)
                 data_max <- max(res$clean_matrix, na.rm = TRUE)
-                # Use symmetric scale only if data spans both positive and negative
+                if (!is.finite(data_min) || !is.finite(data_max) || data_max == data_min) {
+                    data_min <- -2; data_max <- 2
+                }
+                # Symmetric diverging scale only when data spans both signs
                 if (data_min < 0 && data_max > 0) {
                     col_lim <- max(abs(data_max), abs(data_min))
-                } else if (data_min >= 0) {
-                    col_lim <- data_max
+                    col_fun <- bridge_heatmap_col(col_lim)
                 } else {
-                    col_lim <- abs(data_min)
+                    col_fun <- bridge_heatmap_col(data_max, col_min = data_min)
                 }
-                if (!is.finite(col_lim) || col_lim == 0) col_lim <- 2
                 ComplexHeatmap::Heatmap(res$clean_matrix,
-                    col = bridge_heatmap_col(col_lim),
+                    col = col_fun,
                     show_row_dend = FALSE,
                     show_row_names = FALSE
                 )
@@ -401,8 +403,9 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
                 tbl_name    = tbl_name,
                 p_cut       = input$heatmap_pcutoff,
                 lfc_cut     = input$heatmap_fccutoff,
-                clustering  = isTRUE(input$clustering),
-                k           = input$num_clusters,
+                cluster_rows    = isTRUE(input$cluster_rows),
+                cluster_columns = isTRUE(input$cluster_columns),
+                k               = input$num_clusters,
                 dep_output  = isolate(rv$dep_output[[tbl_name]]),
                 datatype    = isolate(rv$datatype[[tbl_name]]),
                 columns_key = paste(isolate(rv$data_cols[[tbl_name]]), collapse = "_"),
@@ -513,7 +516,7 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
             state$heatmap_rows <- unique_id
 
             k <- NULL
-            if (params$clustering) {
+            if (params$cluster_rows) {
                 k <- as.integer(params$k)
                 k_max <- max(2L, nrow(dep_flt) - 1L)
                 if (!is.finite(k) || k < 2L) k <- 2L
@@ -574,10 +577,10 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
             if (!is.null(k)) {
                 ht <- ComplexHeatmap::Heatmap(
                     local_mat,
-                    col            = ht_col,
-                    row_km         = k,
-                    show_row_names = FALSE,
-                    cluster_columns = FALSE
+                    col             = ht_col,
+                    row_km          = k,
+                    show_row_names  = FALSE,
+                    cluster_columns = isTRUE(params$cluster_columns)
                 ) + ComplexHeatmap::rowAnnotation(
                     profile = ComplexHeatmap::anno_empty(
                         which  = "row",
@@ -589,10 +592,10 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
             } else {
                 ht <- ComplexHeatmap::Heatmap(
                     local_mat,
-                    col            = ht_col,
-                    cluster_rows   = FALSE,
-                    show_row_names = FALSE,
-                    cluster_columns = FALSE
+                    col             = ht_col,
+                    cluster_rows    = FALSE,
+                    show_row_names  = FALSE,
+                    cluster_columns = isTRUE(params$cluster_columns)
                 )
             }
 
@@ -837,7 +840,7 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
                 req(!is.null(local_mat), nrow(local_mat) > 0L, ncol(local_mat) > 0L)
 
                 k <- NULL
-                if (isTRUE(params$clustering)) {
+                if (isTRUE(params$cluster_rows)) {
                     k <- as.integer(params$k)
                     k_max <- max(2L, nrow(local_mat) - 1L)
                     if (!is.finite(k) || k < 2L) k <- 2L
@@ -847,16 +850,18 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
                 if (!is.null(k)) {
                     ComplexHeatmap::Heatmap(
                         local_mat,
+                        col = bridge_heatmap_col(max(abs(local_mat), na.rm = TRUE)),
                         row_km = k,
                         show_row_names = FALSE,
-                        cluster_columns = FALSE
+                        cluster_columns = isTRUE(params$cluster_columns)
                     )
                 } else {
                     ComplexHeatmap::Heatmap(
                         local_mat,
+                        col = bridge_heatmap_col(max(abs(local_mat), na.rm = TRUE)),
                         cluster_rows = FALSE,
                         show_row_names = FALSE,
-                        cluster_columns = FALSE
+                        cluster_columns = isTRUE(params$cluster_columns)
                     )
                 }
             },

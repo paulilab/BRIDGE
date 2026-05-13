@@ -55,13 +55,18 @@ DepHeatmapUI <- function(id, tbl_name) {
                 numericInput(ns("heatmap_fccutoff"), "FC Threshold:",
                     min = 0, max = 10, value = 1, step = 0.1
                 ),
-                p("Enable clustering:"),
-                shinyWidgets::switchInput(ns("clustering"),
+                p("Cluster rows (k-means):"),
+                shinyWidgets::switchInput(ns("cluster_rows"),
                     value = TRUE,
                     onLabel = "YES", offLabel = "NO", width = "auto"
                 ),
-                numericInput(ns("num_clusters"), "Select Number of Clusters",
+                numericInput(ns("num_clusters"), "Number of Row Clusters (k)",
                     min = 2, step = 1, value = 3
+                ),
+                p("Cluster columns:"),
+                shinyWidgets::switchInput(ns("cluster_columns"),
+                    value = FALSE,
+                    onLabel = "YES", offLabel = "NO", width = "auto"
                 ),
                 shinyWidgets::actionBttn(
                     ns("recompute_heatmap"),
