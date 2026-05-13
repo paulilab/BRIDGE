@@ -36,6 +36,9 @@ RawHeatmapServer <- function(id, rv, tbl_name, cache = NULL) {
                     phosphoproteomics = raw_data$pepG
                 )
                 rownames(clean) <- rn
+                # Clamp negatives (not physically meaningful) then log2-transform
+                clean[clean < 0] <- 0
+                clean <- log2(clean + 1)
                 list(clean_matrix = clean)
             })
         })
@@ -97,20 +100,15 @@ RawHeatmapServer <- function(id, rv, tbl_name, cache = NULL) {
             data_min <- min(res$clean_matrix, na.rm = TRUE)
             data_max <- max(res$clean_matrix, na.rm = TRUE)
             if (!is.finite(data_min) || !is.finite(data_max) || data_max == data_min) {
-                data_min <- -2; data_max <- 2
+                data_min <- 0; data_max <- 10
             }
-            # Symmetric diverging scale only when data spans both signs
-            if (data_min < 0 && data_max > 0) {
-                col_lim <- max(abs(data_max), abs(data_min))
-                col_fun <- bridge_heatmap_col(col_lim)
-            } else {
-                col_fun <- bridge_heatmap_col(data_max, col_min = data_min)
-            }
+            col_fun <- bridge_heatmap_col(data_max, col_min = data_min)
             
             ComplexHeatmap::Heatmap(res$clean_matrix,
                 col = col_fun,
                 show_row_dend = FALSE,
-                show_row_names = FALSE
+                show_row_names = FALSE,
+                name = "log2(x+1)"
             )
         })
 
@@ -155,19 +153,14 @@ RawHeatmapServer <- function(id, rv, tbl_name, cache = NULL) {
                 data_min <- min(res$clean_matrix, na.rm = TRUE)
                 data_max <- max(res$clean_matrix, na.rm = TRUE)
                 if (!is.finite(data_min) || !is.finite(data_max) || data_max == data_min) {
-                    data_min <- -2; data_max <- 2
+                    data_min <- 0; data_max <- 10
                 }
-                # Symmetric diverging scale only when data spans both signs
-                if (data_min < 0 && data_max > 0) {
-                    col_lim <- max(abs(data_max), abs(data_min))
-                    col_fun <- bridge_heatmap_col(col_lim)
-                } else {
-                    col_fun <- bridge_heatmap_col(data_max, col_min = data_min)
-                }
+                col_fun <- bridge_heatmap_col(data_max, col_min = data_min)
                 ComplexHeatmap::Heatmap(res$clean_matrix,
                     col = col_fun,
                     show_row_dend = FALSE,
-                    show_row_names = FALSE
+                    show_row_names = FALSE,
+                    name = "log2(x+1)"
                 )
             },
             width = 10,
