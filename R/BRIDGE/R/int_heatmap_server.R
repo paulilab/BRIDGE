@@ -515,6 +515,37 @@ int_heatmap_server <- function(input, output, session, rv) {
       shiny::req(tbl, tbl %in% names(state))
 
       x <- state[[tbl]]
+
+      cluster_ids <- split(seq_len(nrow(x$mat_ordered)), x$cluster_vec)
+      line_profiles <- t(vapply(cluster_ids, function(idxs) {
+        colMeans(x$mat_ordered[idxs, , drop = FALSE], na.rm = TRUE)
+      }, FUN.VALUE = numeric(ncol(x$mat_ordered))))
+
+      trend_anno <- NULL
+      if (nrow(line_profiles) > 0 && ncol(line_profiles) > 0) {
+        line_profiles_norm <- t(apply(line_profiles, 1, function(v) {
+          rng <- range(v, na.rm = TRUE)
+          if (!all(is.finite(rng)) || diff(rng) == 0) rep(0.5, length(v)) else (v - rng[1]) / diff(rng)
+        }))
+        trend_anno <- ComplexHeatmap::rowAnnotation(
+          trend = ComplexHeatmap::anno_link(
+            align_to = x$cluster_vec,
+            which = "row",
+            panel_fun = function(index, nm2) {
+              grid::grid.rect()
+              grid::grid.lines(
+                x = seq_len(ncol(line_profiles_norm)) / ncol(line_profiles_norm),
+                y = line_profiles_norm[as.integer(nm2), ],
+                gp = ggfun::gpar(col = BRIDGE_COLORS$accent, lwd = 1)
+              )
+            },
+            side = "right",
+            size = unit(3, "cm"),
+            width = unit(5, "cm")
+          )
+        )
+      }
+
       ComplexHeatmap::draw(
         ComplexHeatmap::Heatmap(
           x$mat_ordered,
@@ -528,7 +559,8 @@ int_heatmap_server <- function(input, output, session, rv) {
           row_split = x$cluster_vec,
           row_names_gp = ggfun::gpar(fontsize = 6),
           column_names_gp = ggfun::gpar(fontsize = 8),
-          heatmap_legend_param = list(title = "Expression")
+          heatmap_legend_param = list(title = "Expression"),
+          right_annotation = trend_anno
         ),
         merge_legend = TRUE,
         newpage = FALSE

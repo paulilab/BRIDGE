@@ -33,7 +33,9 @@ register_plot_download <- function(input, output, session, id_prefix, filename_p
             on.exit(grDevices::dev.off(), add = TRUE)
 
             p <- plot_fun()
-            if (inherits(p, "Heatmap") || inherits(p, "HeatmapList")) {
+            if (is.null(p)) {
+                # plot_fun drew the plot in-place (e.g. draw + decorate)
+            } else if (inherits(p, "Heatmap") || inherits(p, "HeatmapList")) {
                 ComplexHeatmap::draw(p, merge_legend = TRUE, newpage = FALSE)
             } else {
                 print(p)

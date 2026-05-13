@@ -832,6 +832,13 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
                 local_mat <- dep_flt_list$mat_scaled
                 req(!is.null(local_mat), nrow(local_mat) > 0L, ncol(local_mat) > 0L)
 
+                y_lim <- range(local_mat, na.rm = TRUE)
+                if (!all(is.finite(y_lim)) || diff(y_lim) == 0) y_lim <- c(-1, 1)
+
+                col_lim <- max(abs(local_mat), na.rm = TRUE)
+                if (!is.finite(col_lim) || col_lim == 0) col_lim <- 2
+                ht_col <- bridge_heatmap_col(col_lim)
+
                 k <- NULL
                 if (isTRUE(params$cluster_rows)) {
                     k <- as.integer(params$k)
@@ -841,22 +848,129 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
                 }
 
                 if (!is.null(k)) {
-                    ComplexHeatmap::Heatmap(
+                    ht <- ComplexHeatmap::Heatmap(
                         local_mat,
-                        col = bridge_heatmap_col(max(abs(local_mat), na.rm = TRUE)),
-                        row_km = k,
-                        show_row_names = FALSE,
+                        col             = ht_col,
+                        row_km          = k,
+                        show_row_names  = FALSE,
                         cluster_columns = isTRUE(params$cluster_columns)
+                    ) + ComplexHeatmap::rowAnnotation(
+                        profile = ComplexHeatmap::anno_empty(
+                            which  = "row",
+                            width  = grid::unit(55, "mm"),
+                            height = grid::unit(30, "mm")
+                        ),
+                        annotation_name_gp = grid::gpar(col = NA)
                     )
                 } else {
-                    ComplexHeatmap::Heatmap(
+                    ht <- ComplexHeatmap::Heatmap(
                         local_mat,
-                        col = bridge_heatmap_col(max(abs(local_mat), na.rm = TRUE)),
-                        cluster_rows = FALSE,
-                        show_row_names = FALSE,
+                        col             = ht_col,
+                        cluster_rows    = FALSE,
+                        show_row_names  = FALSE,
                         cluster_columns = isTRUE(params$cluster_columns)
                     )
                 }
+
+                ht <- ComplexHeatmap::draw(ht, merge_legend = TRUE, newpage = FALSE)
+
+                if (!is.null(k)) {
+                    rord_val <- ComplexHeatmap::row_order(ht)
+                    if (!is.null(rord_val)) {
+                        if (is.list(rord_val)) {
+                            n_slices <- length(rord_val)
+                        } else {
+                            rord_val <- list(rord_val)
+                            n_slices <- 1L
+                        }
+
+                        cord <- ComplexHeatmap::column_order(ht)
+                        if (is.list(cord)) cord <- cord[[1L]]
+
+                        labs <- colnames(local_mat)[cord]
+                        xs   <- seq_along(cord)
+
+                        for (s in seq_len(n_slices)) {
+                            idx <- rord_val[[s]]
+                            sub <- local_mat[idx, cord, drop = FALSE]
+                            if (!is.matrix(sub) || nrow(sub) == 0L) next
+
+                            med <- apply(sub, 2, stats::median,   na.rm = TRUE)
+                            q1  <- apply(sub, 2, stats::quantile, probs = 0.25, na.rm = TRUE)
+                            q3  <- apply(sub, 2, stats::quantile, probs = 0.75, na.rm = TRUE)
+
+                            ComplexHeatmap::decorate_annotation("profile", slice = s, {
+                                grid::pushViewport(grid::viewport(
+                                    xscale = c(0.5, length(xs) + 0.5),
+                                    yscale = y_lim,
+                                    clip   = "on"
+                                ))
+                                on.exit(grid::popViewport(), add = TRUE)
+
+                                grid::grid.lines(
+                                    x = grid::unit(c(1, length(xs)), "native"),
+                                    y = grid::unit(c(0, 0),         "native"),
+                                    gp = grid::gpar(col = "blue")
+                                )
+
+                                ok <- is.finite(q1) & is.finite(q3)
+                                if (any(ok)) {
+                                    x_ok <- xs[ok]
+                                    grid::grid.polygon(
+                                        x = grid::unit(c(x_ok, rev(x_ok)), "native"),
+                                        y = grid::unit(c(q1[ok], rev(q3[ok])), "native"),
+                                        gp = grid::gpar(fill = "#00000022", col = NA)
+                                    )
+                                }
+
+                                okm <- is.finite(med)
+                                if (any(okm)) {
+                                    runs <- split(xs[okm], cumsum(c(1, diff(xs[okm]) != 1)))
+                                    for (r in runs) {
+                                        grid::grid.lines(
+                                            x = grid::unit(r,      "native"),
+                                            y = grid::unit(med[r], "native"),
+                                            gp = grid::gpar(col = "black", lwd = 2)
+                                        )
+                                    }
+                                    grid::grid.points(
+                                        x = grid::unit(xs[okm], "native"),
+                                        y = grid::unit(med[okm], "native"),
+                                        pch = 16, size = grid::unit(0.7, "mm")
+                                    )
+                                } else {
+                                    grid::grid.text("no data", gp = grid::gpar(cex = 0.6, col = "grey50"))
+                                }
+
+                                if (s == n_slices) {
+                                    grid::grid.xaxis(at = xs, label = FALSE)
+                                    for (i in xs) {
+                                        tg    <- grid::textGrob(labs[i], gp = grid::gpar(cex = 0.55), rot = 90)
+                                        w_nat <- grid::convertX(grid::grobWidth(tg),  "native")
+                                        h_mm  <- grid::convertY(grid::grobHeight(tg), "mm", valueOnly = TRUE)
+                                        x_pos <- grid::unit(i, "native")
+                                        if (i == xs[1]) {
+                                            x_pos <- x_pos + 0.2 * w_nat
+                                        } else if (i == xs[length(xs)]) {
+                                            x_pos <- x_pos - 0.2 * w_nat
+                                        }
+                                        y_pos <- grid::unit(h_mm / 2 + 1.2, "mm")
+                                        grid::grid.text(
+                                            labs[i],
+                                            x    = x_pos,
+                                            y    = y_pos,
+                                            rot  = 90,
+                                            just = c(0.5, 0.5),
+                                            gp   = grid::gpar(cex = 0.55)
+                                        )
+                                    }
+                                }
+                            })
+                        }
+                    }
+                }
+
+                invisible(NULL)
             },
             width = 10,
             height = 10
