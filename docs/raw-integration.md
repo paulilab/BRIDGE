@@ -32,7 +32,7 @@ Practical tips:
 
 For exact methodological scope, see [Methodology](methodology.md).
 
-![Raw Integration trend output across selected datasets](assets/raw_integration.png)
+![Raw Integration trend output across selected datasets](assets/Raw_Integration_Final.svg)
 
 *Figure 7. Raw Integration output comparing selected features across two loaded datasets. Each panel shows one source dataset, with points representing replicate-level values and connected markers summarizing stage-wise trends for the selected genes or identifiers.*
 

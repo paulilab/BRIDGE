@@ -44,7 +44,7 @@ Interpretation tips:
 
 For exact methodological scope, see [Methodology](methodology.md).
 
-![Processed Integration heatmaps for intersected significant features](assets/processed_integration.png)
+![Processed Integration heatmaps for intersected significant features](assets/Processed_Integration_Final.png)
 
 *Figure 8. Processed Integration heatmaps for the shared significant feature set across selected datasets. Each heatmap summarizes an integrated dataset after contrast-level filtering and ID intersection, with side profiles showing cluster-level expression trends.*
 

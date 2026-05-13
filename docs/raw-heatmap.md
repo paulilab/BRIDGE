@@ -27,7 +27,7 @@ Notes:
 - This module is for first-pass inspection.
 - It does not apply significance filtering.
 
-![Raw Heatmap view after compute](assets/raw_heatmap.png)
+![Raw Heatmap view after compute](assets/Raw_Heatmap_Final.svg)
 
 *Figure 1. Raw Heatmap view after compute. Warmer colors indicate higher relative signal and cooler colors indicate lower relative signal across the selected datapoints. Use the column clustering and broad color bands to spot stage-level similarity, global shifts, or potential outlier samples.*
 

@@ -27,7 +27,7 @@ Interpretation tips:
 - Unexpected grouping can indicate technical variation or annotation issues.
 - Pair PCA interpretation with raw/de views before filtering decisions.
 
-![PCA scatter plot showing sample relationships](assets/pca.png)
+![PCA scatter plot showing sample relationships](assets/PCA_Final.svg)
 
 *Figure 6. PCA scatter plot for a loaded dataset. Each point is a sample or replicate, colors indicate groups or stages, and the axes show the first two principal components with the percentage of variance explained.*
 

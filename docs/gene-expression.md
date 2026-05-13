@@ -36,7 +36,7 @@ Practical tips:
 - Validate stage ordering and replicate naming in your input columns.
 - Compare transformed and continuous views before conclusions.
 
-![Gene Expression module with selected protein trends](assets/gene_expression.png)
+![Gene Expression module with selected protein trends](assets/Expression_Final.svg)
 
 *Figure 4. Gene Expression view for selected proteins across stages. Individual points show replicate-level values, and the connected markers summarize the stage-wise trend for each selected feature.*
 
