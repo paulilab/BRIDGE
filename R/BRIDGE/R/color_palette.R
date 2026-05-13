@@ -68,8 +68,8 @@ BRIDGE_COLORS <- list(
 #' Generate a discrete color vector of length \emph{n}
 #'
 #' Returns exactly \code{n} colors drawn from \code{BRIDGE_COLORS$discrete}.
-#' When \code{n} exceeds the 8 base colors the palette is interpolated via
-#' \code{\link[grDevices]{colorRampPalette}}.
+#' When \code{n} exceeds the 8 base colors, a high-contrast qualitative HCL
+#' palette is generated to avoid low-contrast neighboring colors.
 #'
 #' @param n Integer. Number of colors required.
 #' @return Character vector of hex color codes.
@@ -77,7 +77,11 @@ BRIDGE_COLORS <- list(
 bridge_discrete_pal <- function(n) {
     base <- BRIDGE_COLORS$discrete
     if (n <= length(base)) return(base[seq_len(n)])
-    grDevices::colorRampPalette(base)(n)
+    grDevices::hcl(
+        h = seq(15, 375, length.out = n + 1)[seq_len(n)],
+        c = 100,
+        l = 55
+    )
 }
 
 #' Diverging heatmap color ramp (circlize)

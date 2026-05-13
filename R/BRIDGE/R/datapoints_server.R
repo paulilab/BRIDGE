@@ -107,6 +107,9 @@ datapointsServer <- function(id, rv, tbl_name) {
         datapoints_plot <- reactive({
             dl <- long_data()
             if (identical(rv$datatype[[tbl_name]], "phosphoproteomics")) {
+                gene_levels <- sort(unique(stringr::str_to_title(dl$Gene_pepG)))
+                gene_pal <- stats::setNames(bridge_discrete_pal(length(gene_levels)), gene_levels)
+
                 data_avg <- dplyr::summarise(dplyr::group_by(dl, StageGroup, Gene_pepG),
                     MeanExpression = mean(Expression, na.rm = TRUE),
                     .groups = "drop"
@@ -138,7 +141,8 @@ datapointsServer <- function(id, rv, tbl_name) {
                         size = 4, shape = 17
                     ) +
                     ggplot2::scale_color_manual(
-                        values = bridge_discrete_pal(length(unique(dl$Gene_pepG)))
+                        values = gene_pal,
+                        breaks = gene_levels
                     ) +
                     ggplot2::labs(
                         x = "Stage",
@@ -157,6 +161,9 @@ datapointsServer <- function(id, rv, tbl_name) {
                 if (identical(input$scale, "Log-scale")) p <- p + ggplot2::scale_y_log10()
                 p
             } else {
+                gene_levels <- sort(unique(stringr::str_to_title(dl$Gene_Name)))
+                gene_pal <- stats::setNames(bridge_discrete_pal(length(gene_levels)), gene_levels)
+
                 data_avg <- dplyr::summarise(dplyr::group_by(dl, StageGroup, Gene_Name),
                     MeanExpression = mean(Expression, na.rm = TRUE),
                     .groups = "drop"
@@ -188,7 +195,8 @@ datapointsServer <- function(id, rv, tbl_name) {
                         size = 4, shape = 17
                     ) +
                     ggplot2::scale_color_manual(
-                        values = bridge_discrete_pal(length(unique(dl$Gene_Name)))
+                        values = gene_pal,
+                        breaks = gene_levels
                     ) +
                     ggplot2::labs(
                         x = "Stage",

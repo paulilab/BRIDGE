@@ -269,8 +269,8 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
 
             keyvals <- ifelse(
                 tolower(df$name) %in% tolower(highlight), BRIDGE_COLORS$highlight,
-                ifelse(df$log2FC < -1 * lfc_cut, BRIDGE_COLORS$down,
-                    ifelse(df$log2FC > lfc_cut, BRIDGE_COLORS$up,
+                ifelse(df$dir == "down", BRIDGE_COLORS$down,
+                    ifelse(df$dir == "up", BRIDGE_COLORS$up,
                         BRIDGE_COLORS$ns
                     )
                 )

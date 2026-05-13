@@ -124,12 +124,14 @@ int_datapoints_server <- function(input, output, session, data_combined, referen
     integration_datapoints_plot <- reactive({
         long <- data_long()
         avg <- data_avg()
+        gene_levels <- sort(unique(long$unique_id))
+        gene_pal <- stats::setNames(bridge_discrete_pal(length(gene_levels)), gene_levels)
 
         ggplot2::ggplot() +
             geom_point(data = long, aes(x = StageGroup, y = Expression, color = unique_id), size = 3, alpha = 0.5) +
             geom_line(data = avg, aes(x = StageGroup, y = MeanExpression, color = unique_id, group = unique_id), linewidth = 1.2) +
             geom_point(data = avg, aes(x = StageGroup, y = MeanExpression, color = unique_id), size = 4, shape = 17) +
-            scale_color_manual(values = bridge_discrete_pal(length(unique(long$unique_id)))) +
+            scale_color_manual(values = gene_pal, breaks = gene_levels) +
             facet_wrap(~source, ncol = 2, scales = "free") +
             labs(x = "Stage", y = "Expression", color = "Gene") +
             theme_minimal() +
