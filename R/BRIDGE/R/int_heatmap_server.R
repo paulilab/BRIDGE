@@ -284,7 +284,7 @@ int_heatmap_server <- function(input, output, session, rv) {
 
           ComplexHeatmap::Heatmap(
             mat_ordered,
-            name = nm,
+            name = "z-score",
             col = bridge_heatmap_col(max(abs(mat_ordered), na.rm = TRUE)),
             cluster_rows = FALSE,
             cluster_columns = FALSE,
@@ -549,7 +549,7 @@ int_heatmap_server <- function(input, output, session, rv) {
       ComplexHeatmap::draw(
         ComplexHeatmap::Heatmap(
           x$mat_ordered,
-          name = tbl,
+          name = "z-score",
           col = bridge_heatmap_col(max(abs(x$mat_ordered), na.rm = TRUE)),
           cluster_rows = FALSE,
           cluster_columns = FALSE,

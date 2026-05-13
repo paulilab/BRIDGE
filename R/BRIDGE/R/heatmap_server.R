@@ -570,6 +570,7 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
             if (!is.null(k)) {
                 ht <- ComplexHeatmap::Heatmap(
                     local_mat,
+                    name            = "z-score",
                     col             = ht_col,
                     row_km          = k,
                     show_row_names  = FALSE,
@@ -585,6 +586,7 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
             } else {
                 ht <- ComplexHeatmap::Heatmap(
                     local_mat,
+                    name            = "z-score",
                     col             = ht_col,
                     cluster_rows    = FALSE,
                     show_row_names  = FALSE,
@@ -850,6 +852,7 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
                 if (!is.null(k)) {
                     ht <- ComplexHeatmap::Heatmap(
                         local_mat,
+                        name            = "z-score",
                         col             = ht_col,
                         row_km          = k,
                         show_row_names  = FALSE,
@@ -865,6 +868,7 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
                 } else {
                     ht <- ComplexHeatmap::Heatmap(
                         local_mat,
+                        name            = "z-score",
                         col             = ht_col,
                         cluster_rows    = FALSE,
                         show_row_names  = FALSE,
