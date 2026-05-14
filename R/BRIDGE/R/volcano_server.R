@@ -72,6 +72,22 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
             dep_flt
         }
 
+        make_volcano_labels <- function(df, datatype) {
+            gene <- stringr::str_to_title(trimws(as.character(df$Gene_Name)))
+            protein <- trimws(as.character(df$Protein_ID))
+            gene_id <- trimws(as.character(df$Gene_ID))
+            pepg <- trimws(as.character(df$pepG))
+
+            labels <- switch(datatype,
+                proteomics = paste0(gene, "_", protein),
+                phosphoproteomics = paste0(gene, "_", protein, "_", pepg),
+                rnaseq = if (!is.null(df$Gene_ID)) paste0(gene, "_", gene_id) else trimws(as.character(rownames(df))),
+                trimws(as.character(rownames(df)))
+            )
+
+            trimws(as.character(labels))
+        }
+
         volcano_task <- ExtendedTask$new(function(args) {
             promises::future_promise(
                 {
@@ -95,11 +111,7 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
                     df_table <- df
                     # message("DF_table: ", head(df_table, 3), "\ndpflt: ", str(SummarizedExperiment::colData(dep_flt)))
 
-                    names <- switch(datatype,
-                        proteomics        = paste0(stringr::str_to_title(df$Gene_Name), "_", df$Protein_ID),
-                        phosphoproteomics = paste0(stringr::str_to_title(df$Gene_Name), "_", df$Protein_ID, "_", df$pepG),
-                        rnaseq            = if (!is.null(df$Gene_ID)) paste0(df$Gene_Name, "_", df$Gene_ID) else rownames(df)
-                    )
+                    names <- make_volcano_labels(df, datatype)
                     # message("NAMING: ", head(names))
 
                     df <- data.frame(
@@ -123,15 +135,7 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
         # Populate highlight choices
         observe({
             req(rv$tables[[tbl_name]], rv$datatype[[tbl_name]])
-            choices <- switch(rv$datatype[[tbl_name]],
-                phosphoproteomics = paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$Protein_ID, "_", rv$tables[[tbl_name]]$pepG),
-                rnaseq = if (!is.null(rv$tables[[tbl_name]]$Gene_ID)) {
-                    paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$Gene_ID)
-                } else {
-                    rownames(rv$tables[[tbl_name]])
-                },
-                paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$Protein_ID) # proteomics default
-            )
+            choices <- make_volcano_labels(rv$tables[[tbl_name]], rv$datatype[[tbl_name]])
             updateSelectizeInput(session, "volcano_search", choices = sort(unique(choices)), server = TRUE)
         })
 
@@ -196,18 +200,43 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
             volcano_mode <- tolower(Sys.getenv("BRIDGE_VOLCANO_RENDER_MODE", "native"))
 
             build_native_volcano <- function(df_native) {
-                plotly::plot_ly(
+                p_native <- plotly::plot_ly(
                     data = df_native,
                     x = ~log2FC,
                     y = ~neglog10p,
                     type = "scattergl",
                     mode = "markers",
-                    color = ~dir,
-                    colors = c(down = BRIDGE_COLORS$down, ns = BRIDGE_COLORS$ns, up = BRIDGE_COLORS$up),
+                    color = ~dir_plot,
+                    colors = c(
+                        down = BRIDGE_COLORS$down,
+                        ns = BRIDGE_COLORS$ns,
+                        up = BRIDGE_COLORS$up,
+                        highlight = BRIDGE_COLORS$highlight
+                    ),
                     text = ~name,
                     hoverinfo = "text",
                     marker = list(size = 6, opacity = 0.75)
-                ) |>
+                )
+
+                hl_df <- df_native[df_native$is_highlight, , drop = FALSE]
+                if (nrow(hl_df) > 0) {
+                    p_native <- p_native |>
+                        plotly::add_trace(
+                            data = hl_df,
+                            x = ~log2FC,
+                            y = ~neglog10p,
+                            type = "scattergl",
+                            mode = "markers+text",
+                            text = ~name,
+                            textposition = "top center",
+                            hoverinfo = "text",
+                            marker = list(size = 8, opacity = 0.95, color = BRIDGE_COLORS$highlight),
+                            showlegend = FALSE,
+                            inherit = FALSE
+                        )
+                }
+
+                p_native |>
                     plotly::layout(
                         xaxis = list(title = "Log2 fold change"),
                         yaxis = list(title = "-Log10 Padj")
@@ -215,8 +244,10 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
             }
 
             df <- res$df
+            df$name <- trimws(as.character(df$name))
             # message("DF: ", colnames(df), " | ", paste(head(df$name), collapse = ", "))
-            highlight <- params$highlight
+            highlight <- trimws(as.character(params$highlight))
+            highlight <- highlight[nzchar(highlight)]
             p_cut <- params$p_cut
             lfc_cut <- params$lfc_cut
             # normalize highlight into df$name space
@@ -246,6 +277,8 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
             df$dir <- ifelse(is_sig & df$log2FC > 0, "up",
                 ifelse(is_sig & df$log2FC < 0, "down", "ns")
             )
+            df$is_highlight <- tolower(df$name) %in% tolower(highlight)
+            df$dir_plot <- ifelse(df$is_highlight, "highlight", df$dir)
 
             # KEEP all sig + ALL highlighted, then thin remaining ns
             if (nrow(df) > 10000) {

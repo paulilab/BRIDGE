@@ -14,6 +14,6 @@ Character vector of hex color codes.
 }
 \description{
 Returns exactly \code{n} colors drawn from \code{BRIDGE_COLORS$discrete}.
-When \code{n} exceeds the 8 base colors the palette is interpolated via
-\code{\link[grDevices]{colorRampPalette}}.
+When \code{n} exceeds the 8 base colors, a high-contrast qualitative HCL
+palette is generated to avoid low-contrast neighboring colors.
 }
