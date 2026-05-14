@@ -37,7 +37,7 @@ data_ui_object <- shinydashboard::box(
         )
     ),
     shiny::tags$div(style = "height:10px;"),
-    shiny::selectInput("remove", "Select Table to remove", choices = NULL, selected = NULL, multiple = TRUE),
+    shiny::selectInput("remove", "Select Table to remove", choices = NULL, selected = NULL, multiple = FALSE),
     shiny::helpText("Write the name of an already loaded table to delete it"),
     shiny::tags$div(style = "height:10px;"),
     shiny::div(

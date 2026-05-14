@@ -98,7 +98,7 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
                     names <- switch(datatype,
                         proteomics        = paste0(stringr::str_to_title(df$Gene_Name), "_", df$Protein_ID),
                         phosphoproteomics = paste0(stringr::str_to_title(df$Gene_Name), "_", df$Protein_ID, "_", df$pepG),
-                        rnaseq            = rownames(df)
+                        rnaseq            = if (!is.null(df$Gene_ID)) paste0(df$Gene_Name, "_", df$Gene_ID) else rownames(df)
                     )
                     # message("NAMING: ", head(names))
 
@@ -124,13 +124,13 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
         observe({
             req(rv$tables[[tbl_name]], rv$datatype[[tbl_name]])
             choices <- switch(rv$datatype[[tbl_name]],
-                phosphoproteomics = paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$pepG),
+                phosphoproteomics = paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$Protein_ID, "_", rv$tables[[tbl_name]]$pepG),
                 rnaseq = if (!is.null(rv$tables[[tbl_name]]$Gene_ID)) {
                     paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$Gene_ID)
                 } else {
                     rownames(rv$tables[[tbl_name]])
                 },
-                paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$Gene_ID) # proteomics default
+                paste0(rv$tables[[tbl_name]]$Gene_Name, "_", rv$tables[[tbl_name]]$Protein_ID) # proteomics default
             )
             updateSelectizeInput(session, "volcano_search", choices = sort(unique(choices)), server = TRUE)
         })
