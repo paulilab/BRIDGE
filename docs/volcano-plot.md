@@ -32,7 +32,7 @@ Interpretation tips:
 - Check that highlighted candidates behave as expected under chosen contrast.
 - Use same thresholds when comparing across runs.
 
-![Volcano Plot after compute](assets/Volcano_Final.png)
+![Volcano Plot after compute](assets/Volcano_Final.svg)
 
 *Figure 3. Volcano Plot after compute. Each point is a feature in the selected contrast; the x-axis shows log2 fold change and the y-axis shows statistical evidence as `-log10(p-value)`. Dashed lines mark the selected LFC and p-value cutoffs.*
 
