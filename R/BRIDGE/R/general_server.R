@@ -321,6 +321,30 @@ server_function <- function(input, output, session, db_path) {
     # LOADED TABLES INFO
 
     output$loaded_info <- shiny::renderUI({
+        format_dims <- function(x) {
+            if (is.null(x)) return("n/a")
+            d <- tryCatch(dim(x), error = function(e) NULL)
+            if (!is.null(d) && length(d) >= 2 && !any(is.na(d[1:2]))) {
+                return(sprintf("%s x %s", format(d[1], big.mark = ","), format(d[2], big.mark = ",")))
+            }
+            "n/a"
+        }
+
+        format_dep_dims <- function(obj) {
+            if (is.null(obj)) return("processing")
+
+            # SummarizedExperiment and data.frame/matrix-like objects
+            dims <- format_dims(obj)
+            if (!identical(dims, "n/a")) return(dims)
+
+            # Fallback for DEGdata-like objects
+            tr <- tryCatch(obj@test_result, error = function(e) NULL)
+            tr_dims <- format_dims(tr)
+            if (!identical(tr_dims, "n/a")) return(tr_dims)
+
+            "n/a"
+        }
+
         if (length(rv$table_names) == 0) {
             return("No table loaded yet.")
         } else {
@@ -329,10 +353,19 @@ server_function <- function(input, output, session, db_path) {
                 shiny::tags$ul(
                     lapply(rv$table_names, function(tbl_name) {
                         download_id <- paste0("download_", gsub("[^a-zA-Z0-9]", "_", tbl_name))
+                        raw_dims <- format_dims(rv$tables[[tbl_name]])
+                        dep_obj <- rv$dep_output[[tbl_name]]
+                        dep_class <- if (is.null(dep_obj)) "pending" else class(dep_obj)[1]
+                        dep_dims <- format_dep_dims(dep_obj)
+
                         shiny::tags$li(
-                            tbl_name,
-                            " ",
-                            shiny::downloadButton(download_id, label = "Download .rds.gz", class = "btn-sm")
+                            shiny::tags$div(
+                                shiny::tags$strong(tbl_name),
+                                shiny::tags$br(),
+                                shiny::tags$small(sprintf("Table: %s | RDS (%s): %s", raw_dims, dep_class, dep_dims)),
+                                shiny::tags$br(),
+                                shiny::downloadButton(download_id, label = "Download .rds.gz", class = "btn-sm")
+                            )
                         )
                     })
                 )
