@@ -24,6 +24,8 @@ python -m pip install -r requirements-docs.txt
 python -m mkdocs serve
 ```
 
+Documentation is also hosted on readthedocs, see documentation status badge.
+
 ## Run from container
 Simply run 
 ```bash
@@ -76,29 +78,24 @@ After copying the repository the environment has to be set up in R so all the li
 renv::restore() #This command is to be done in R after opening the BRIDGE project
 ```
 
+Database creation requires python and pandas, please install via 
+
+```
+pip install pandas
+```
+
+or use conda/mamba/pixi to create an environment from the `BRIDGE/Python/environment.yml` or `BRIDGE/Python/requirements.txt` file
+
+```
+conda env create -n bridge -f BRIDGE/Python/environment.yml
+```
+
 After this, your local computer will have all the files and required libraries
 
 ### Database creation
 
-In order to use the app, a database is needed. Scripts are provided for the user to be guided through the process.
-Firstly, a `.db` file has to be created.
-
-```bash
-touch user_database.db
-```
-Then, after creating the empty database, it has to be filled with tables and annotation files, for that, two scripts are provided that will guide the user through the process.
-
-```bash
-python /BRIDGE/Python/db_adding.py
-```
-
-```bash
-python /BRIDGE/Python/db_adding_annotation.py
-```
-
-Both this scripts can be executed as many times as needed.
-
-After all this, the user will have the usable database.
+In order to use the app, a database is needed. Scripts and a stand-alone shiny-app are provided for the user to be guided through the process.
+This can happen interactively or via command line as described next.
 
 ### Interactive database builder app (recommended)
 
@@ -123,6 +120,23 @@ By default it runs on port `3839`. You can override this with:
 
 ```bash
 BRIDGE_DB_BUILDER_PORT=3840 Rscript app_db_builder.R
+```
+
+### Commandline creation of database
+
+Firstly, a `.db` file has to be created.
+
+```bash
+touch user_database.db
+```
+Then, after creating the empty database, it has to be filled with tables and annotation files, for that, two scripts are provided that will guide the user through the process.
+
+```bash
+python /BRIDGE/Python/db_adding.py
+```
+
+```bash
+python /BRIDGE/Python/db_adding_annotation.py
 ```
 
 Both scripts assume certain homogeneity in the data. For a correct functioning of the scripts and the app, that is why we put together this set of rules to be followed both in the manual curation of the data prior to the database creation and in the creation of the database itself.
