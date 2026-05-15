@@ -20,7 +20,7 @@ This repository includes an MkDocs documentation scaffold under `docs/` and `mkd
 To build docs locally:
 
 ```bash
-python -m pip install -r requirements-docs.txt
+python -m pip install -r docs/requirements.txt
 python -m mkdocs serve
 ```
 
@@ -32,7 +32,7 @@ Simply run
 docker run -d --rm --name bridge -p 3838:3838 --mount type=bind,src=${YOUR_DATABASE},dst=/srv/data/database.db ghcr.io/paulilab/bridge:latest
 ```
 replacing ${YOUR_DATABASE} with the full path to a database of your choice.
-You can use the test database ![here](https://bridge.imp.ac.at) to get a first impression of the app.
+You can use the test database [here](https://bridge.imp.ac.at) to get a first impression of the app or build a local version of test database with the table provided in [example_data](/example_data).
 
 ### Configure async workers (Docker / infrastructure tuning)
 
@@ -62,11 +62,15 @@ Recommended starting point:
 
 ## Installation
 
-In order to download and start using bridge there are some previous steps to be done, like setting the environment and creating the database.
+In order to run `BRIDGE` locally there are some prerequisites to fulfill, like setting up the environment and creating the database.
+
+**Requirements:** R >= 4.0.0, Python >= 3.7
+
+All commands below assume you are running them from inside the cloned repository root (`BRIDGE/`).
 
 ### Setting up the environment
 
-First, the user has to clone the git repository to the local machine.
+First, clone the git repository to your local machine.
 
 ```bash
 git clone https://github.com/paulilab/BRIDGE
@@ -75,19 +79,19 @@ git clone https://github.com/paulilab/BRIDGE
 After copying the repository the environment has to be set up in R so all the libraries are available.
 
 ```R
-renv::restore() #This command is to be done in R after opening the BRIDGE project
+renv::restore() 
 ```
 
-Database creation requires python and pandas, please install via 
+Database creation requires Python. Install dependencies via pip:
 
-```
-pip install pandas
+```bash
+pip install -r Python/requirements.txt
 ```
 
-or use conda/mamba/pixi to create an environment from the `BRIDGE/Python/environment.yml` or `BRIDGE/Python/requirements.txt` file
+or use `conda/mamba/pixi` to create an environment from `Python/environment.yml`:
 
-```
-conda env create -n bridge -f BRIDGE/Python/environment.yml
+```bash
+conda env create -n bridge -f Python/environment.yml
 ```
 
 After this, your local computer will have all the files and required libraries
@@ -112,8 +116,7 @@ It will open a local UI where you can:
 - set or create the SQLite database path
 - upload (or reference) raw CSV/TSV files
 - preview columns to select identifier/datapoint indices
-- run `Python/db_adding.py` with your selected options
-- run `Python/db_adding_annotation.py` for annotation tables
+- build the database
 - optionally attach processed `.rds` objects
 
 By default it runs on port `3839`. You can override this with:
@@ -124,7 +127,7 @@ BRIDGE_DB_BUILDER_PORT=3840 Rscript app_db_builder.R
 
 ### Commandline creation of database
 
-Firstly, a `.db` file has to be created.
+First, a `.db` file has to be created.
 
 ```bash
 touch user_database.db
@@ -132,14 +135,14 @@ touch user_database.db
 Then, after creating the empty database, it has to be filled with tables and annotation files, for that, two scripts are provided that will guide the user through the process.
 
 ```bash
-python /BRIDGE/Python/db_adding.py
+python Python/db_adding.py
 ```
 
 ```bash
-python /BRIDGE/Python/db_adding_annotation.py
+python Python/db_adding_annotation.py
 ```
 
-Both scripts assume certain homogeneity in the data. For a correct functioning of the scripts and the app, that is why we put together this set of rules to be followed both in the manual curation of the data prior to the database creation and in the creation of the database itself.
+Both scripts assume a specific structure in the input data. Please follow the rules below carefully before running them, both when curating your data and when building the database.
 
 ### Requirements for Your Data
 
@@ -149,7 +152,7 @@ If any rule is not met, the app will most likely crash.
 ---
 
 #### 1. File format
-- The file **must be a CSV**.
+- The file **must be a CSV or TSV**.
 
 #### 2. Identifier columns
 - You must provide **at least 3 identifier columns**, with exact names:
@@ -197,27 +200,30 @@ Example:
 - `DBI`
 - `RSQLite`
 
+> **Note:** These packages are included in the `renv` environment restored above. Only install them manually if you are running the database creation scripts outside of the `renv` environment.
+
 
 ## Usage
 
-Now, the user already has all the files and libraries as well as the database, so it only remains the execution of the app.
+With the environment set up and a database created, start the app from the repository root:
 
 ```bash
-Rscript /BRIDGE/app.R user_database.db
+Rscript app.R user_database.db
 ```
 
-You can also configure async execution from command line flags:
+By default the app runs on port `3838`. Open `http://localhost:3838` in your browser.
+
+You can also configure the port and async execution via command line flags:
 
 ```bash
-Rscript /BRIDGE/app.R --workers=4 --max-workers=4 --backend=multisession user_database.db 3838
+Rscript app.R --workers=4 --max-workers=4 --backend=multisession user_database.db 3838
 ```
 
 Flags:
+- `<port>`: optional positional argument specifying the port (default: `3838`)
 - `--workers=<n>`: requested worker count
 - `--max-workers=<n>`: upper cap for workers (default is 2)
 - `--backend=<auto|multisession|callr>`: async backend
-
-After the execution the app will be open, copy the `url` to your browser and start using BRIDGE!
 
 ## File structure
 
@@ -225,7 +231,19 @@ As said before, the code has been heavily modularized to ease the editing, debug
 This also allows the user to further locally customize the app with more pipelines or plots without the need of understanding and editing the whole code
 but rather just changing the corresponding files.
 
-Here is a diagram showing all the different code files and their hierarchy. Moreover, you can also see which functions are declared in which files and a brief description of what is inside each file.
-Following this diagram, the user should find in a fairly easy manner the part of the code they are interested in.
+Here is a diagram showing all the different code files and their hierarchy, including the functions declared in each file and a brief description of each module. The key modules are:
+
+- **`app.R`** — entry point, wires UI and server together
+- **`R/BRIDGE/R/`** — modular server and UI files, one per analysis type (heatmap, volcano, PCA, enrichment, integration, etc.)
+- **`app_db_builder.R`** — stand-alone Shiny app for interactive database creation
+- **`Python/`** — command-line scripts for database creation and annotation
 
 ![Code Hierarchy Diagram](./CODE_DIAGRAM_FINAL.png)
+
+## License
+
+BRIDGE is released under the Apache license version 2. See [LICENSE](./LICENSE) for details.
+
+## Citation
+
+If you use BRIDGE in your research, please cite it as indicated in the repository or any associated publication.
