@@ -31,7 +31,7 @@ Practical tips:
 - If clusters are unstable, try fewer/more conservative features first.
 - Use alongside Volcano Plot for consistency checks.
 
-![DE Heatmap output with clustered significant features](assets/DE_Heatmap_Final.png)
+![DE Heatmap output with clustered significant features](assets/DE_Heatmap_Final.svg)
 
 *Figure 2. DE Heatmap output after applying p-value and LFC thresholds. The heatmap groups significant features by similar expression patterns, while the side panels summarize the average trend for each cluster.*
 
