@@ -53,6 +53,6 @@ COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 3838
-# Run entrypoint as root so it can fix bind-mount permissions before dropping to shiny
+# Entrypoint handles both root and non-root (e.g. OpenShift random UID) startup paths
 ENTRYPOINT ["/entrypoint.sh"]
 # Build with docker build --network=host -t bridge:latest .
