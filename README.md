@@ -60,6 +60,14 @@ Recommended starting point:
 - increase to 3-4 on larger machines if multiple users run heavy analyses concurrently
 - beyond that, gains may plateau because not all app workflows are parallelized
 
+### Memory management
+
+BRIDGE monitors its session memory and automatically trims internal caches when usage exceeds a configurable cap (default: 8192 MB). Override with:
+
+```bash
+-e BRIDGE_MEMORY_CAP_MB=4096
+```
+
 ## Installation
 
 In order to run `BRIDGE` locally there are some prerequisites to fulfill, like setting up the environment and creating the database.

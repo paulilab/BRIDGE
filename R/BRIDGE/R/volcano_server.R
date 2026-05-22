@@ -68,6 +68,11 @@ VolcanoServer <- function(id, rv, cache, tbl_name) {
             dep_output <- params$dep_output
             dep_output <- strip_sig(dep_output)
             dep_flt <- DEP2::add_rejections(dep_output, alpha = params$p_cut, lfc = params$lfc_cut)
+            # Cap cache at 5 entries (evict oldest)
+            if (length(reactiveValuesToList(depflt_cache)) >= 5) {
+                oldest <- names(reactiveValuesToList(depflt_cache))[1]
+                depflt_cache[[oldest]] <- NULL
+            }
             depflt_cache[[key]] <- dep_flt
             dep_flt
         }

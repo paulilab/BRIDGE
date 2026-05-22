@@ -250,6 +250,11 @@ DepHeatmapServer <- function(id, rv, cache, tbl_name) {
                 meta       = meta,
                 unique_id  = unique_id
             )
+            # Cap cache at 5 entries (evict oldest)
+            if (length(state$depflt_cache) >= 5) {
+                oldest <- names(state$depflt_cache)[1]
+                state$depflt_cache[[oldest]] <- NULL
+            }
             state$depflt_cache[[key]] <- ret_list
             ret_list
         }
