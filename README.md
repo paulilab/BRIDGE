@@ -80,6 +80,18 @@ BRIDGE caches computed results (DE outputs, heatmaps, PCA, enrichment) in the SQ
 -e BRIDGE_CACHE_MAX_PER_MODULE=20
 ```
 
+### Debug mode
+
+Set `BRIDGE_DEBUG=1` to enable a live diagnostics overlay in the app (bottom-right corner). It shows current memory usage, loaded tables, DB cache entry counts per module, in-memory cache sizes, and timestamps of prune events. Refreshes every 5 seconds.
+
+```bash
+docker run -d --rm --name bridge \
+  -p 3838:3838 \
+  -e BRIDGE_DEBUG=1 \
+  --mount type=bind,src=${YOUR_DATABASE},dst=/srv/data/database.db \
+  ghcr.io/paulilab/bridge:latest
+```
+
 ## Installation
 
 In order to run `BRIDGE` locally there are some prerequisites to fulfill, like setting up the environment and creating the database.

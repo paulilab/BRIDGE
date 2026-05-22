@@ -32,6 +32,10 @@ server_function <- function(input, output, session, db_path) {
         gc()
     }
 
+    # Debug panel (only active when BRIDGE_DEBUG=1)
+    bridge_debug <- identical(Sys.getenv("BRIDGE_DEBUG", "0"), "1")
+    last_prune_time <- reactiveVal("never")
+
     # Periodic memory check (every 30 seconds)
     mem_check_timer <- shiny::reactiveTimer(30000)
     shiny::observe({
@@ -39,6 +43,7 @@ server_function <- function(input, output, session, db_path) {
         mem_mb <- get_session_mem_mb()
         if (mem_mb > mem_cap_mb) {
             trim_module_caches()
+            last_prune_time(format(Sys.time(), "%H:%M:%S"))
             message(sprintf("BRIDGE: memory pressure (%.0f MB > %.0f MB cap), caches trimmed.", mem_mb, mem_cap_mb))
         }
     })
@@ -112,6 +117,48 @@ server_function <- function(input, output, session, db_path) {
             message("BRIDGE: cache maintenance skipped: ", conditionMessage(e))
         })
     })
+
+    # Debug panel rendering
+    if (bridge_debug) {
+        debug_timer <- shiny::reactiveTimer(5000)
+
+        output$debug_panel <- shiny::renderUI({
+            debug_timer()
+            mem_mb <- get_session_mem_mb()
+
+            # Count cache entries per module
+            all_keys <- tryCatch(cache$list(), error = function(e) character(0))
+            n_dep <- length(grep("_dep$", all_keys))
+            n_raw_ht <- length(grep("_raw_heatmap_task$", all_keys))
+            n_dep_ht <- length(grep("_dep_heatmap_task$", all_keys))
+            n_volcano <- length(grep("_dep_volcano_task$", all_keys))
+            n_pca <- length(grep("_pca_v1$", all_keys))
+            n_enrich <- length(grep("^enrich\\|", all_keys))
+            n_total <- length(all_keys)
+
+            # In-memory depflt_cache sizes
+            hm_cache_n <- sum(vapply(rv$table_names, function(tbl) {
+                s <- rv$heatmap_state[[tbl]]
+                if (!is.null(s)) length(s$depflt_cache) else 0L
+            }, integer(1)))
+
+            n_tables <- length(rv$table_names)
+
+            shiny::tags$div(
+                id = "debug_panel_wrapper",
+                shiny::tags$div(shiny::tags$b("BRIDGE DEBUG")),
+                shiny::tags$div(sprintf("Memory: %.0f / %.0f MB", mem_mb, mem_cap_mb)),
+                shiny::tags$div(sprintf("Loaded tables: %d", n_tables)),
+                shiny::tags$div(sprintf("DB cache (%d total):", n_total)),
+                shiny::tags$div(sprintf("  DEP: %d | Raw HM: %d | DE HM: %d", n_dep, n_raw_ht, n_dep_ht)),
+                shiny::tags$div(sprintf("  Volcano: %d | PCA: %d | Enrich: %d", n_volcano, n_pca, n_enrich)),
+                shiny::tags$div(sprintf("In-mem HM cache: %d entries", hm_cache_n)),
+                shiny::tags$div(sprintf("Last prune: %s", last_prune_time()))
+            )
+        })
+    } else {
+        output$debug_panel <- shiny::renderUI(NULL)
+    }
 
     rv <- reactiveValues(tables = list(), table_names = character(), data_cols = list(), datatype = character(), constrasts = list()) # variable that stores most of the important values for each table
 
