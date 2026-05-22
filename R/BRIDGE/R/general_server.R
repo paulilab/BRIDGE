@@ -49,6 +49,70 @@ server_function <- function(input, output, session, db_path) {
         tbl_keys = "storr_keys",
         con = con
     )
+
+    # Database cache maintenance: prune stale entries and cap per-table entries
+    local({
+        max_per_module <- as.integer(Sys.getenv("BRIDGE_CACHE_MAX_PER_MODULE", "10"))
+
+        tryCatch({
+            all_keys <- cache$list()
+            if (length(all_keys) == 0L) return(invisible(NULL))
+
+            # 1. Remove entries for tables no longer in the database
+            db_tables <- tryCatch(
+                DBI::dbGetQuery(con, "SELECT table_name FROM table_metadata")$table_name,
+                error = function(e) character(0)
+            )
+            if (length(db_tables) > 0L) {
+                stale <- vapply(all_keys, function(k) {
+                    # Keys start with table_id (before first module-specific suffix)
+                    # or use pipe-separated format (enrich|table|...)
+                    if (grepl("^enrich\\|", k)) {
+                        tbl <- strsplit(k, "\\|", fixed = FALSE)[[1]][2]
+                    } else {
+                        # Table name is the prefix before the column data
+                        # Match against known table names
+                        tbl <- NA_character_
+                        for (db_tbl in db_tables) {
+                            if (startsWith(k, paste0(db_tbl, "_"))) {
+                                tbl <- db_tbl
+                                break
+                            }
+                        }
+                    }
+                    !is.na(tbl) && !(tbl %in% db_tables)
+                }, logical(1))
+                for (k in all_keys[stale]) cache$del(k)
+                all_keys <- all_keys[!stale]
+            }
+
+            # 2. Cap entries per table+module type (keep most recent N)
+            # Group keys by table + module suffix pattern
+            module_patterns <- c("_dep$", "_raw_heatmap_task$", "_dep_heatmap_task$",
+                                 "_dep_volcano_task$", "_pca_v1$")
+            for (pat in module_patterns) {
+                matching <- grep(pat, all_keys, value = TRUE)
+                if (length(matching) <= max_per_module) next
+                # Group by table prefix (everything before the column data is table-specific)
+                # Since we can't easily group, just cap total per pattern
+                to_drop <- head(matching, length(matching) - max_per_module)
+                for (k in to_drop) cache$del(k)
+            }
+
+            # Also cap enrichment entries
+            enrich_keys <- grep("^enrich\\|", all_keys, value = TRUE)
+            if (length(enrich_keys) > max_per_module * 3L) {
+                to_drop <- head(enrich_keys, length(enrich_keys) - max_per_module * 3L)
+                for (k in to_drop) cache$del(k)
+            }
+
+            # 3. Reclaim storage from orphaned hashes
+            cache$gc()
+        }, error = function(e) {
+            message("BRIDGE: cache maintenance skipped: ", conditionMessage(e))
+        })
+    })
+
     rv <- reactiveValues(tables = list(), table_names = character(), data_cols = list(), datatype = character(), constrasts = list()) # variable that stores most of the important values for each table
 
     # Populate species choices from table_metadata
