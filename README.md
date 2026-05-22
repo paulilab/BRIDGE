@@ -1,6 +1,6 @@
 # BRIDGE
 
-[![Documentation Status](https://readthedocs.org/projects/bridge-paulilab/badge/?version=latest)](https://bridge-paulilab.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/bridge-paulilab/badge/?version=latest)](https://bridge-paulilab.readthedocs.io/en/latest/?badge=latest) [![DOI](https://zenodo.org/badge/999467404.svg)](https://doi.org/10.5281/zenodo.20215823)
 
 ## Overview
 
