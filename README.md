@@ -65,7 +65,19 @@ Recommended starting point:
 BRIDGE monitors its session memory and automatically trims internal caches when usage exceeds a configurable cap (default: 8192 MB). Override with:
 
 ```bash
--e BRIDGE_MEMORY_CAP_MB=4096
+docker run -d --rm --name bridge \
+  -p 3838:3838 \
+  -e BRIDGE_MEMORY_CAP_MB=4096 \
+  --mount type=bind,src=${YOUR_DATABASE},dst=/srv/data/database.db \
+  ghcr.io/paulilab/bridge:latest
+```
+
+### Database cache maintenance
+
+BRIDGE caches computed results (DE outputs, heatmaps, PCA, enrichment) in the SQLite database to speed up repeated queries. On each session start, stale entries (for tables no longer in the database) are automatically pruned, and per-module entries are capped at 10 (configurable). This keeps the `.db` file from growing indefinitely without any manual intervention.
+
+```bash
+-e BRIDGE_CACHE_MAX_PER_MODULE=20
 ```
 
 ## Installation
