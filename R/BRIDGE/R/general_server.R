@@ -5,9 +5,43 @@ server_function <- function(input, output, session, db_path) {
     con <- connect_db(db_path)
     session$onSessionEnded(function() {
         try(DBI::dbDisconnect(con), silent = TRUE)
+        gc()
     })
 
     all_tables <- DBI::dbListTables(con)
+
+    # Memory management: configurable cap in MB (default 8GB)
+    mem_cap_mb <- as.numeric(Sys.getenv("BRIDGE_MEMORY_CAP_MB", "8192"))
+
+    get_session_mem_mb <- function() {
+        # Use R's gc() report for current session memory (in MB)
+        gc_info <- gc(verbose = FALSE, reset = FALSE)
+        sum(gc_info[, 2])  # "Mb" column = current usage
+    }
+
+    trim_module_caches <- function() {
+        # Trim depflt_cache in heatmap_state to most recent 3 entries per table
+        for (tbl in rv$table_names) {
+            state <- rv$heatmap_state[[tbl]]
+            if (!is.null(state) && length(state$depflt_cache) > 3) {
+                keys <- names(state$depflt_cache)
+                to_drop <- keys[seq_len(length(keys) - 3)]
+                for (k in to_drop) state$depflt_cache[[k]] <- NULL
+            }
+        }
+        gc()
+    }
+
+    # Periodic memory check (every 30 seconds)
+    mem_check_timer <- shiny::reactiveTimer(30000)
+    shiny::observe({
+        mem_check_timer()
+        mem_mb <- get_session_mem_mb()
+        if (mem_mb > mem_cap_mb) {
+            trim_module_caches()
+            message(sprintf("BRIDGE: memory pressure (%.0f MB > %.0f MB cap), caches trimmed.", mem_mb, mem_cap_mb))
+        }
+    })
 
     # creation of cache starr object
     cache <- storr::storr_dbi(
@@ -15,7 +49,7 @@ server_function <- function(input, output, session, db_path) {
         tbl_keys = "storr_keys",
         con = con
     )
-    rv <- reactiveValues(tables = list(), table_names = character(), ht_matrix = list(), data_cols = list(), datatype = character(), constrasts = list()) # variable that stores most of the important values for each table
+    rv <- reactiveValues(tables = list(), table_names = character(), data_cols = list(), datatype = character(), constrasts = list()) # variable that stores most of the important values for each table
 
     # Populate species choices from table_metadata
     local({
@@ -216,7 +250,7 @@ server_function <- function(input, output, session, db_path) {
 
             # Always refresh table-specific state so new column selections take effect.
             per_table_slots <- c(
-                "tables", "ht_matrix", "id_cols", "data_cols", "datatype",
+                "tables", "id_cols", "data_cols", "datatype",
                 "species", "annotation", "dep_output", "contrasts", "constrasts",
                 "current_dep_heatmap_key", "current_dep_volcano_key"
             )
@@ -231,8 +265,6 @@ server_function <- function(input, output, session, db_path) {
 
             shiny::incProgress(0.15, detail = "Updating app state")
             rv$tables[[table_id]] <- new_data
-            matrix_data <- new_data[, datapoint_cols, drop = FALSE]
-            rv$ht_matrix[[table_id]] <- as.matrix(matrix_data)
             rv$id_cols[[table_id]] <- id_cols
             rv$data_cols[[table_id]] <- input$datapoints_selected
             rv$datatype[[table_id]] <- datatype
@@ -307,7 +339,7 @@ server_function <- function(input, output, session, db_path) {
         }
 
         per_table_slots <- c(
-            "tables", "ht_matrix", "id_cols", "data_cols", "datatype",
+            "tables", "id_cols", "data_cols", "datatype",
             "species", "annotation", "dep_output", "contrasts", "constrasts",
             "current_dep_heatmap_key", "current_dep_volcano_key"
         )
