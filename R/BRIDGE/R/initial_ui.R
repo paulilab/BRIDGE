@@ -30,7 +30,7 @@ ui <- shinydashboard::dashboardPage(
         #debug_panel_wrapper {
           position: fixed;
           bottom: 10px;
-          right: 10px;
+          left: 10px;
           z-index: 9999;
           background: rgba(0, 0, 0, 0.85);
           color: #0f0;
