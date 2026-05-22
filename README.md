@@ -62,7 +62,7 @@ Recommended starting point:
 
 ### Memory management
 
-BRIDGE monitors its session memory and automatically trims internal caches when usage exceeds a configurable cap (default: 8192 MB). Override with:
+BRIDGE monitors its process RSS (resident set size — what Docker reports) and automatically trims internal caches when usage exceeds a configurable cap (default: 8192 MB). Override with:
 
 ```bash
 docker run -d --rm --name bridge \
@@ -71,6 +71,19 @@ docker run -d --rm --name bridge \
   --mount type=bind,src=${YOUR_DATABASE},dst=/srv/data/database.db \
   ghcr.io/paulilab/bridge:latest
 ```
+
+**Note:** Docker's reported memory includes not just R objects but also loaded libraries, async worker processes, SQLite memory-mapped pages, and Linux page cache. To set a hard container-level limit (Docker will kill the process if exceeded), use `--memory`:
+
+```bash
+docker run -d --rm --name bridge \
+  -p 3838:3838 \
+  -e BRIDGE_MEMORY_CAP_MB=4096 \
+  --memory=6g \
+  --mount type=bind,src=${YOUR_DATABASE},dst=/srv/data/database.db \
+  ghcr.io/paulilab/bridge:latest
+```
+
+Set `BRIDGE_MEMORY_CAP_MB` lower than `--memory` to give the app room to trim caches before Docker's OOM killer intervenes.
 
 ### Database cache maintenance
 

@@ -13,10 +13,24 @@ server_function <- function(input, output, session, db_path) {
     # Memory management: configurable cap in MB (default 8GB)
     mem_cap_mb <- as.numeric(Sys.getenv("BRIDGE_MEMORY_CAP_MB", "8192"))
 
-    get_session_mem_mb <- function() {
-        # Use R's gc() report for current session memory (in MB)
+    get_r_heap_mb <- function() {
+        # R's managed heap (what gc() tracks)
         gc_info <- gc(verbose = FALSE, reset = FALSE)
-        sum(gc_info[, 2])  # "Mb" column = current usage
+        sum(gc_info[, 2])
+    }
+
+    get_process_rss_mb <- function() {
+        # Actual process RSS as seen by the OS / Docker stats
+        tryCatch({
+            status <- readLines("/proc/self/status", warn = FALSE)
+            rss_line <- grep("^VmRSS:", status, value = TRUE)
+            if (length(rss_line) > 0) {
+                # VmRSS is in kB
+                as.numeric(gsub("[^0-9]", "", rss_line[1])) / 1024
+            } else {
+                get_r_heap_mb()  # fallback on non-Linux
+            }
+        }, error = function(e) get_r_heap_mb())
     }
 
     trim_module_caches <- function() {
@@ -36,15 +50,15 @@ server_function <- function(input, output, session, db_path) {
     bridge_debug <- identical(Sys.getenv("BRIDGE_DEBUG", "0"), "1")
     last_prune_time <- reactiveVal("never")
 
-    # Periodic memory check (every 30 seconds)
+    # Periodic memory check (every 30 seconds) — uses process RSS
     mem_check_timer <- shiny::reactiveTimer(30000)
     shiny::observe({
         mem_check_timer()
-        mem_mb <- get_session_mem_mb()
+        mem_mb <- get_process_rss_mb()
         if (mem_mb > mem_cap_mb) {
             trim_module_caches()
             last_prune_time(format(Sys.time(), "%H:%M:%S"))
-            message(sprintf("BRIDGE: memory pressure (%.0f MB > %.0f MB cap), caches trimmed.", mem_mb, mem_cap_mb))
+            message(sprintf("BRIDGE: memory pressure (%.0f MB RSS > %.0f MB cap), caches trimmed.", mem_mb, mem_cap_mb))
         }
     })
 
@@ -124,7 +138,8 @@ server_function <- function(input, output, session, db_path) {
 
         output$debug_panel <- shiny::renderUI({
             debug_timer()
-            mem_mb <- get_session_mem_mb()
+            r_heap_mb <- get_r_heap_mb()
+            rss_mb <- get_process_rss_mb()
 
             # Count cache entries per module
             all_keys <- tryCatch(cache$list(), error = function(e) character(0))
@@ -147,7 +162,8 @@ server_function <- function(input, output, session, db_path) {
             shiny::tags$div(
                 id = "debug_panel_wrapper",
                 shiny::tags$div(shiny::tags$b("BRIDGE DEBUG")),
-                shiny::tags$div(sprintf("Memory: %.0f / %.0f MB", mem_mb, mem_cap_mb)),
+                shiny::tags$div(sprintf("Process RSS: %.0f / %.0f MB", rss_mb, mem_cap_mb)),
+                shiny::tags$div(sprintf("R heap: %.0f MB", r_heap_mb)),
                 shiny::tags$div(sprintf("Loaded tables: %d", n_tables)),
                 shiny::tags$div(sprintf("DB cache (%d total):", n_total)),
                 shiny::tags$div(sprintf("  DEP: %d | Raw HM: %d | DE HM: %d", n_dep, n_raw_ht, n_dep_ht)),
