@@ -23,6 +23,15 @@ Aside from the previous explained selections, the user is asked to select an ann
 Thanks to this, the user can select the annotation of the correct genome version to conduct the analyses even if different tables come from different versions.
 </p>
 
+<h3>Minimum Data Requirements for Differential Expression</h3>
+
+<p>
+BRIDGE performs differential expression (DE) analysis automatically upon loading data.
+For this to work, your selection must include <strong>at least 2 conditions</strong> with <strong>at least 2 replicates each</strong>.
+This is a fundamental statistical requirement: without replicates, variance cannot be estimated, and without multiple conditions, no contrasts can be computed.
+If these requirements are not met, the analysis will fail.
+</p>
+
 <h3>Metadata-Driven Dynamic UI</h3>
 
 <p>

@@ -176,6 +176,26 @@ server_function <- function(input, output, session, db_path) {
             id_cols <- trimws(unlist(strsplit(meta$identifier_columns, ",")))
             datapoint_cols <- trimws(input$datapoints_selected)
 
+            # Validate experimental design: need >= 2 conditions with >= 2 replicates each
+            conditions <- sub("_[^_]+$", "", datapoint_cols)
+            cond_counts <- table(conditions)
+            if (length(cond_counts) < 2) {
+                shiny::showNotification(
+                    "At least 2 conditions are required for differential expression analysis. Please select columns from more conditions.",
+                    type = "error", duration = NULL
+                )
+                return()
+            }
+            underpowered <- names(cond_counts)[cond_counts < 2]
+            if (length(underpowered) > 0) {
+                shiny::showNotification(
+                    paste0("Each condition needs at least 2 replicates. The following have fewer: ",
+                           paste(underpowered, collapse = ", "), ". Please select more replicates."),
+                    type = "error", duration = NULL
+                )
+                return()
+            }
+
             shiny::incProgress(0.2, detail = "Querying selected table")
             safe_cols <- sprintf('"%s"', unique(c(id_cols, datapoint_cols)))
             col_string <- paste(safe_cols, collapse = ", ")

@@ -166,6 +166,7 @@ All naming rules must be followed **strictly**.
 - All value (measurement) columns must end with an integer specifying the replicate, **preceded by an underscore** (`_`).  
 - **No additional underscores** are allowed in the column name.  
 - For extra separation, use other symbols instead.  
+- **You must select at least 2 conditions with at least 2 replicates each.** Differential expression analysis requires replicates to estimate variance and multiple conditions to compute contrasts.
 
 Example:  
 `X6.hpf_1`
