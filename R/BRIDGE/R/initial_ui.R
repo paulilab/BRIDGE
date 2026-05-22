@@ -27,8 +27,23 @@ ui <- shinydashboard::dashboardPage(
         .main-header .logo {
           font-family: 'Inknut Antiqua', sans-serif;
         }
+        #debug_panel_wrapper {
+          position: fixed;
+          bottom: 10px;
+          right: 10px;
+          z-index: 9999;
+          background: rgba(0, 0, 0, 0.85);
+          color: #0f0;
+          font-family: 'Courier New', monospace;
+          font-size: 11px;
+          padding: 8px 12px;
+          border-radius: 6px;
+          max-width: 320px;
+          pointer-events: none;
+        }
       "))
         ),
+        shiny::uiOutput("debug_panel"),
         shiny::fluidRow(
             shiny::column(
                 width = 9,
